@@ -43,12 +43,11 @@ The API's `DATABASE_URL=sqlite:///../../data/game-platform.db` is intentionally 
 
 ## Internal Kubernetes deployment
 
-The internal deployment is intentionally manual. GitLab CI lints, type-checks,
-tests, and builds tagged API and web images for every commit; it does not have
-cluster credentials and never deploys. Import or mirror this repository into a
-GitLab project with its Container Registry enabled so `.gitlab-ci.yml` can push
-its images to `$CI_REGISTRY_IMAGE`. Its runner must permit Docker-in-Docker
-(`privileged = true`) for the image job.
+The internal deployment is intentionally manual. GitHub Actions lints,
+type-checks, tests, and builds both images for every push and pull request. A
+push to `main` also publishes them to GitHub Container Registry (GHCR) with the
+commit's short SHA and `latest` tags; it does not have cluster credentials and
+never deploys.
 
 The homelab deployment expects the `ceph-block` storage class and the NGINX
 ingress class already used by the rest of the cluster. Before the first deploy,
@@ -60,18 +59,19 @@ kubectl -n bolblab-games create secret generic games-secrets \
   --from-literal=SESSION_SECRET="$(openssl rand -base64 32)"
 ```
 
-Publish the two images to an image repository that the cluster can pull from,
-then deploy the matching tag. GitLab uses the current commit's short SHA. The
-script defaults to the GitHub Container Registry convention used by the
-homelab and to that same local commit tag:
+GHCR packages are private by default. Make the published package public for
+this internal cluster or configure an image-pull secret before deploying.
+
+After a successful push to `main`, GitHub Actions publishes both images to the
+GitHub Container Registry convention used by the homelab. Deploy the matching
+current commit's short SHA (the script chooses this by default):
 
 ```bash
 scripts/deploy --tag <image-tag>
 ```
 
-When using GitLab's registry, pass its image base once with
-`--image-repo registry.gitlab.example/group/project`; use `--context
-<kubectl-context>` when needed.
+Use `--context <kubectl-context>` when needed. Use `--image-repo <repository>`
+only when overriding the default `ghcr.io/bolb23/games.bolblab.org` image base.
 The app is served at `http://games.int.bolblab.org`. If the existing
 `games-int-bolblab-org-tls` secret is present, the deploy script uses it;
 otherwise it leaves the ingress HTTP-only.
