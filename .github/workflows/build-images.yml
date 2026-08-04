@@ -38,7 +38,7 @@ jobs:
       - working-directory: apps/api
         run: uv run mypy app
       - working-directory: apps/api
-        run: uv run pytest
+        run: uv run python -m pytest
 
   build-images:
     name: Build ${{ matrix.name }} image
