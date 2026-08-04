@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: games-api
+  namespace: bolblab-games
+  labels:
+    app.kubernetes.io/name: games-api
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: games-api
+  ports:
+    - name: http
+      port: 8000
+      targetPort: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: games-web
+  namespace: bolblab-games
+  labels:
+    app.kubernetes.io/name: games-web
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: games-web
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

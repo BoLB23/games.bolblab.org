@@ -1,0 +1,29 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: games
+  namespace: bolblab-games
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - games.int.bolblab.org
+      secretName: games-int-bolblab-org-tls
+  rules:
+    - host: games.int.bolblab.org
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: games-api
+                port:
+                  number: 8000
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: games-web
+                port:
+                  number: 80

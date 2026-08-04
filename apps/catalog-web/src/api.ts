@@ -1,0 +1,20 @@
+import { createGamePlatformClient, GamePlatformApiError } from '@game-platform/game-client-sdk';
+
+export const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api/v1';
+export const client = createGamePlatformClient({ apiBaseUrl });
+export { GamePlatformApiError };
+
+export interface DevelopmentUser { id: string; display_name: string; email: string | null; is_admin: boolean }
+
+async function devRequest<T>(path: string, body?: unknown): Promise<T> {
+  const response = await fetch(`${apiBaseUrl}${path}`, {
+    method: body ? 'POST' : 'GET', credentials: 'include', headers: body ? { 'Content-Type': 'application/json' } : undefined,
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (!response.ok) throw new GamePlatformApiError(`Request failed (${response.status})`, response.status);
+  return response.json() as Promise<T>;
+}
+
+export const getDevelopmentUsers = () => devRequest<DevelopmentUser[]>('/auth/dev/users');
+export const devLogin = (userId: string) => devRequest('/auth/dev/login', { user_id: userId });
+export const logout = () => fetch(`${apiBaseUrl}/auth/logout`, { method: 'POST', credentials: 'include' });

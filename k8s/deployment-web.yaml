@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: games-web
+  namespace: bolblab-games
+  labels:
+    app.kubernetes.io/name: games-web
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: games-web
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: games-web
+    spec:
+      containers:
+        - name: web
+          image: ghcr.io/bolb23/games.bolblab.org/web:latest
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 2
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 25m
+              memory: 32Mi
+            limits:
+              cpu: 250m
+              memory: 128Mi

@@ -1,0 +1,29 @@
+{
+  "name": "game-platform",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": ["apps/catalog-web", "games/sample-game", "packages/game-client-sdk"],
+  "scripts": {
+    "setup": "node scripts/setup.mjs",
+    "dev": "concurrently -k -n api,catalog,game -c blue,magenta,green \"npm run dev:api\" \"npm run dev:catalog\" \"npm run dev:game\"",
+    "dev:api": "cd apps/api && uv run uvicorn app.main:app --host 127.0.0.1 --port 8000",
+    "dev:catalog": "npm run dev --workspace @game-platform/catalog-web",
+    "dev:game": "npm run dev --workspace @game-platform/sample-game",
+    "test": "npm run test:api && npm run test:workspaces",
+    "test:api": "cd apps/api && uv run python -m pytest",
+    "test:workspaces": "npm run test --workspaces --if-present",
+    "lint": "npm run lint:api && npm run lint:workspaces",
+    "lint:api": "cd apps/api && uv run ruff check .",
+    "lint:workspaces": "npm run lint --workspaces --if-present",
+    "typecheck": "npm run typecheck:api && npm run typecheck:workspaces",
+    "typecheck:api": "cd apps/api && uv run mypy app",
+    "typecheck:workspaces": "npm run typecheck --workspaces --if-present",
+    "build": "npm run build --workspace @game-platform/game-client-sdk && npm run build --workspace @game-platform/catalog-web && npm run build --workspace @game-platform/sample-game",
+    "db:migrate": "cd apps/api && uv run alembic upgrade head",
+    "db:seed": "cd apps/api && uv run python -m app.cli seed",
+    "db:reset": "node scripts/db-reset.mjs"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

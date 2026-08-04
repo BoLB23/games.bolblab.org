@@ -1,0 +1,94 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat <<'EOF'
+Usage: scripts/deploy [--tag <tag>] [--context <context>] [--image-repo <repo>]
+
+Deploys the API and web images to bolblab-games. The TLS ingress is used only
+when the pre-existing games-int-bolblab-org-tls secret is present.
+EOF
+}
+
+NAMESPACE="bolblab-games"
+CONTEXT=""
+IMAGE_REPO="ghcr.io/bolb23/games.bolblab.org"
+TAG="$(git rev-parse --short HEAD 2>/dev/null || echo latest)"
+
+require_command() {
+  if ! command -v "$1" >/dev/null 2>&1; then
+    echo "Error: required command not found: $1" >&2
+    exit 1
+  fi
+}
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --tag)
+      TAG="${2:-}"
+      shift 2
+      ;;
+    --context)
+      CONTEXT="${2:-}"
+      shift 2
+      ;;
+    --image-repo)
+      IMAGE_REPO="${2:-}"
+      shift 2
+      ;;
+    --help|-h)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "Error: unknown parameter: $1" >&2
+      usage >&2
+      exit 1
+      ;;
+  esac
+done
+
+if [ -z "$TAG" ] || [ -z "$IMAGE_REPO" ]; then
+  echo "Error: --tag and --image-repo cannot be empty" >&2
+  exit 1
+fi
+
+require_command kubectl
+require_command sed
+
+KUBECTL=(kubectl)
+if [ -n "$CONTEXT" ]; then
+  KUBECTL+=(--context "$CONTEXT")
+fi
+
+ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+MANIFEST_DIR="$ROOT_DIR/k8s"
+API_IMAGE="$IMAGE_REPO/api:$TAG"
+WEB_IMAGE="$IMAGE_REPO/web:$TAG"
+
+echo "Deploying $API_IMAGE and $WEB_IMAGE to $NAMESPACE"
+
+"${KUBECTL[@]}" apply -f "$MANIFEST_DIR/namespace.yaml"
+"${KUBECTL[@]}" apply -f "$MANIFEST_DIR/pvc.yaml"
+"${KUBECTL[@]}" apply -f "$MANIFEST_DIR/service.yaml"
+
+if "${KUBECTL[@]}" -n "$NAMESPACE" get secret games-int-bolblab-org-tls >/dev/null 2>&1; then
+  echo "Using existing TLS secret games-int-bolblab-org-tls"
+  "${KUBECTL[@]}" apply -f "$MANIFEST_DIR/ingress-tls.yaml"
+else
+  echo "TLS secret not found; serving HTTP only"
+  "${KUBECTL[@]}" apply -f "$MANIFEST_DIR/ingress.yaml"
+fi
+
+if ! "${KUBECTL[@]}" -n "$NAMESPACE" get secret games-secrets >/dev/null 2>&1; then
+  echo "Error: games-secrets is required in namespace $NAMESPACE" >&2
+  echo "Create it from k8s/secret.example.yaml after replacing SESSION_SECRET." >&2
+  exit 1
+fi
+
+sed "s|image: .*|image: $API_IMAGE|" "$MANIFEST_DIR/deployment-api.yaml" | "${KUBECTL[@]}" apply -f -
+sed "s|image: .*|image: $WEB_IMAGE|" "$MANIFEST_DIR/deployment-web.yaml" | "${KUBECTL[@]}" apply -f -
+
+"${KUBECTL[@]}" -n "$NAMESPACE" rollout status deployment/games-api --timeout=5m
+"${KUBECTL[@]}" -n "$NAMESPACE" rollout status deployment/games-web --timeout=5m
+"${KUBECTL[@]}" -n "$NAMESPACE" get deployment,service,ingress,pods
