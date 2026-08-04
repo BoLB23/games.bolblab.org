@@ -7,7 +7,8 @@ from typing import Literal
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-ROOT_DIR = Path(__file__).resolve().parents[4]
+API_DIR = Path(__file__).resolve().parents[2]
+ROOT_DIR = API_DIR.parents[1] if API_DIR.parent.name == "apps" else API_DIR
 
 
 class Settings(BaseSettings):
