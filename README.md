@@ -1,14 +1,16 @@
-# Lantern Library game platform
+# Underground Heat Studios
 
-A small private browser-game catalog. It currently provides a development-only player picker, a catalog, game detail and profile views, one independent sample game, and a small SDK shared by browser games. Milton Estates is represented only as a disabled coming-soon catalog record; this repository does not copy, move, or modify it.
+A small private browser-game platform for a handful of longtime friends. It includes a development-only player picker, shared player customization, a clan presence/playtime board, server-ranked leaderboards, one independent sample game, and a framework-independent SDK. Milton Estates remains a disabled coming-soon catalog record; this repository does not copy, move, or modify it.
 
 ## Architecture
 
-- `apps/catalog-web` — React/Vite catalog on port 5173.
-- `apps/api` — FastAPI modular monolith on port 8000, using synchronous SQLAlchemy sessions.
+- `apps/catalog-web` — React/Vite catalog on port 6183.
+- `apps/api` — FastAPI modular monolith on port 8001, using synchronous SQLAlchemy sessions.
 - `packages/game-client-sdk` — framework-independent typed fetch client used by games.
-- `games/sample-game` — standalone vanilla TypeScript/Vite game on port 5174.
+- `games/sample-game` — standalone vanilla TypeScript/Vite game on port 6184.
 - `data` — local SQLite database (ignored by Git).
+
+The authenticated catalog exposes Games, My Player, My Clan, and Leaderboards. Player appearance is stored once per platform user and is returned to games through the SDK. Presence uses a server timestamp refreshed by a periodic browser heartbeat; playtime uses capped game-session heartbeats.
 
 ## Prerequisites and first run
 
@@ -22,14 +24,14 @@ npm run db:seed
 npm run dev
 ```
 
-`npm run setup` copies `.env.example` to `.env` when needed and runs `uv sync` within `apps/api`. Replace the development `SESSION_SECRET` before using any shared environment. Visit `http://localhost:5173`, choose a development user, and launch Sample Game. API docs are available at `http://127.0.0.1:8000/api/v1/docs` in development.
+`npm run setup` copies `.env.example` to `.env` when needed and runs `uv sync` within `apps/api`. Replace the development `SESSION_SECRET` before using any shared environment. Visit `http://localhost:6183`, choose a development user, and launch Sample Game. API docs are available at `http://127.0.0.1:8001/api/v1/docs` in development.
 
 ## Commands
 
 ```bash
 npm install       # install all browser-workspace dependencies
 npm run setup     # create .env if absent and sync the API environment with uv
-npm run dev       # API :8000, catalog :5173, sample game :5174
+npm run dev       # API :8001, catalog :6183, sample game :6184
 npm run test      # Pytest and Vitest suites
 npm run lint      # Ruff and ESLint
 npm run typecheck # mypy and TypeScript checks
@@ -40,6 +42,21 @@ npm run db:reset  # remove only data/game-platform.db, migrate, then seed
 ```
 
 The API's `DATABASE_URL=sqlite:///../../data/game-platform.db` is intentionally relative to `apps/api`, where uv commands run. Change it to a PostgreSQL URL for future deployment work; see `docs/future/DATABASE_AND_DEPLOYMENT.md`.
+
+## Core API contracts
+
+All routes below live under `/api/v1` and require the current HTTP-only platform session unless noted otherwise:
+
+- `GET/PUT /me/player` — read or update the current shared player.
+- `POST /presence/heartbeat` — record the current browser as recently seen.
+- `GET /clan/members` and `GET /clan/members/{user_id}` — render clan members with appearance, role, online state, and aggregated playtime.
+- `PATCH /clan/members/{user_id}/role` — overlord-only role changes for another member.
+- `POST /games/{game_slug}/sessions`, `POST /game-sessions/{session_id}/heartbeat`, and `POST /game-sessions/{session_id}/end` — server-owned playtime sessions.
+- `GET /leaderboards`, `GET /games/{game_slug}/leaderboards`, `GET /leaderboards/{key}`, and `POST /games/{game_slug}/leaderboards/{key}/entries` — definitions, rankings, and authenticated-user submissions.
+
+Leaderboard entries are aggregated server-side using each definition’s `max`, `min`, `latest`, or `sum` rule. A submission never accepts a score-owner user ID; the authenticated session is the owner.
+
+Games use `@game-platform/game-client-sdk`. The main shared methods are `getCurrentPlayer()`, `startGameSession(gameSlug)`, and `submitLeaderboardEntry(gameSlug, input)`. The SDK returns camelCase `PlatformPlayer` data while the API keeps its normal snake_case JSON contract.
 
 ## Internal Kubernetes deployment
 
@@ -82,6 +99,6 @@ small internal deployment only; move to PostgreSQL before increasing replicas.
 
 ## Current limitations
 
-Catalog routes are private and require the development session. This development login is not production authentication: it has no passwords, public registration, social login, or OIDC implementation. There are no cloud saves, statistics, leaderboards, play sessions, achievements, multiplayer, or Milton Estates integration yet. Those are designed in `docs/future/` and ordered in `docs/ROADMAP.md`.
+Catalog routes are private and require the development session. This development login is not production authentication: it has no passwords, public registration, social login, or OIDC implementation. Session time is intentionally approximate and capped between heartbeats; leaderboards are not an anti-cheat system. Cloud saves, achievements, multiplayer, and Milton Estates integration remain future work. The platform uses polling/heartbeats instead of WebSockets or Redis by design; see [`docs/decisions/007-heartbeats-over-realtime.md`](docs/decisions/007-heartbeats-over-realtime.md).
 
 Read `docs/HANDOFF.md` before continuing implementation.

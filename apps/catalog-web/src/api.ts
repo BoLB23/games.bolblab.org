@@ -1,10 +1,10 @@
 import { createGamePlatformClient, GamePlatformApiError } from '@game-platform/game-client-sdk';
 
-export const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api/v1';
+export const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8001/api/v1';
 export const client = createGamePlatformClient({ apiBaseUrl });
 export { GamePlatformApiError };
 
-export interface DevelopmentUser { id: string; display_name: string; email: string | null; is_admin: boolean }
+export interface DevelopmentUser { id: string; display_name: string; email: string | null; is_admin: boolean; role: string }
 
 async function devRequest<T>(path: string, body?: unknown): Promise<T> {
   const response = await fetch(`${apiBaseUrl}${path}`, {

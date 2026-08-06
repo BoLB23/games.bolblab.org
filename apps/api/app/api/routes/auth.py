@@ -37,7 +37,9 @@ def development_login(
     user = get_user(session, payload.user_id)
     if user is None or not user.is_active:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Development user is unavailable")
-    user.last_login_at = utc_now()
+    timestamp = utc_now()
+    user.last_login_at = timestamp
+    user.last_seen_at = timestamp
     session.commit()
     session.refresh(user)
     response.set_cookie(

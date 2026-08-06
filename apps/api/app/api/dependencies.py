@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.auth.session import read_session_value
 from app.core.config import Settings, get_settings
 from app.db.session import get_db_session
-from app.models.user import User
+from app.models.user import ClanRole, User
 from app.repositories.users import get_user
 
 
@@ -27,3 +27,9 @@ def require_development(settings: Settings = Depends(get_settings)) -> Settings:
     if settings.app_env != "development":
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Development authentication is disabled")
     return settings
+
+
+def require_overlord(user: User = Depends(get_current_user)) -> User:
+    if user.role != ClanRole.OVERLORD.value:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Overlord access is required")
+    return user

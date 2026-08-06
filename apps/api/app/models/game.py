@@ -2,13 +2,18 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, CheckConstraint, DateTime, Integer, String
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.types import Uuid
 
 from app.db.base import Base
 from app.models.common import utc_now
+
+if TYPE_CHECKING:
+    from app.models.game_session import GameSession
+    from app.models.leaderboard import LeaderboardDefinition
 
 
 class Game(Base):
@@ -38,4 +43,8 @@ class Game(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=utc_now, onupdate=utc_now
+    )
+    game_sessions: Mapped[list[GameSession]] = relationship(back_populates="game")
+    leaderboards: Mapped[list[LeaderboardDefinition]] = relationship(
+        back_populates="game", cascade="all, delete-orphan"
     )

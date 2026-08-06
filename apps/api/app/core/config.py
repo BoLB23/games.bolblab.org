@@ -15,13 +15,17 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=ROOT_DIR / ".env", extra="ignore")
     app_env: Literal["development", "test", "production"] = "development"
     api_host: str = "127.0.0.1"
-    api_port: int = 8000
+    api_port: int = 8001
     database_url: str = "sqlite:///../../data/game-platform.db"
     session_secret: str = Field(min_length=16)
     session_cookie_name: str = "game_platform_session"
     session_cookie_secure: bool = False
-    catalog_origin: str = "http://localhost:5173"
-    sample_game_origin: str = "http://localhost:5174"
+    catalog_origin: str = "http://localhost:6183"
+    sample_game_origin: str = "http://localhost:6184"
+    presence_window_seconds: int = Field(default=120, ge=30, le=3600)
+    game_session_max_gap_seconds: int = Field(default=120, ge=30, le=3600)
+    leaderboard_max_value: float = Field(default=1_000_000_000, gt=0)
+    leaderboard_max_metadata_bytes: int = Field(default=2048, ge=256, le=16_384)
 
     @field_validator("database_url")
     @classmethod

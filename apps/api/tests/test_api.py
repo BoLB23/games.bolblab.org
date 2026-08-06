@@ -74,7 +74,7 @@ def test_seed_is_idempotent(client: TestClient) -> None:
     with db_session.SessionLocal() as session:
         seed_database(session, "http://localhost:5174")
         seed_database(session, "http://localhost:5174")
-        assert session.execute(text("SELECT count(*) FROM users")).scalar_one() == 2
+        assert session.execute(text("SELECT count(*) FROM users")).scalar_one() == 5
         assert session.execute(text("SELECT count(*) FROM games")).scalar_one() == 2
 
 

@@ -1,5 +1,36 @@
+import type { CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
-import type { PlatformGame } from '@game-platform/game-client-sdk';
+import type { ClanRole, PlatformGame, PlayerAppearanceResponse } from '@game-platform/game-client-sdk';
+
+export const HAIRCUT_OPTIONS = [
+  { key: 'short', label: 'Short' },
+  { key: 'fade', label: 'Fade' },
+  { key: 'long', label: 'Long' },
+  { key: 'mohawk', label: 'Mohawk' },
+] as const;
+
+export const PLAYER_PALETTES = {
+  hair_color: ['#2b1d13', '#5a3521', '#bd742c', '#efe0b6'],
+  tshirt_color: ['#f05a28', '#ffbd3f', '#3c7468', '#ddd2bd'],
+  pants_color: ['#1b2330', '#2f4c43', '#6c4931', '#3a3430'],
+  shoe_color: ['#f5efe4', '#f05a28', '#27231f', '#ffbd3f'],
+} as const;
+
+type AvatarSize = 'small' | 'medium' | 'large';
+
+export function PlayerAvatar({ appearance, size = 'medium', label }: { appearance: PlayerAppearanceResponse; size?: AvatarSize; label?: string }) {
+  const style = {
+    '--avatar-hair': appearance.hair_color,
+    '--avatar-shirt': appearance.tshirt_color,
+    '--avatar-pants': appearance.pants_color,
+    '--avatar-shoes': appearance.shoe_color,
+  } as CSSProperties;
+  return <span className={`player-avatar player-avatar-${size} haircut-${appearance.haircut}`} style={style} role={label ? 'img' : undefined} aria-label={label}>{label ? null : <span className="sr-only">{appearance.nickname}</span>}<span className="avatar-hair" /><span className="avatar-head"><span className="avatar-eye avatar-eye-left" /><span className="avatar-eye avatar-eye-right" /></span><span className="avatar-shirt" /><span className="avatar-pants" /><span className="avatar-shoe avatar-shoe-left" /><span className="avatar-shoe avatar-shoe-right" /></span>;
+}
+
+export function RoleBadge({ role }: { role: ClanRole }) {
+  return <span className={`role-badge role-${role}`}>{role}</span>;
+}
 
 export function CapabilityTags({ game }: { game: PlatformGame }) {
   const capabilities = [game.supports_cloud_saves && 'Cloud saves', game.supports_leaderboards && 'Leaderboards', game.supports_multiplayer && 'Multiplayer'].filter((capability): capability is string => Boolean(capability));

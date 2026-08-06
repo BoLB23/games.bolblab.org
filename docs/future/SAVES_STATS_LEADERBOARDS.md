@@ -1,12 +1,13 @@
 # Future saves, statistics, and leaderboards
 
+The player profile, play-session, and baseline leaderboard contracts in this note were implemented in the Player/Clan/Leaderboard expansion. The remaining proposals below concern cloud saves, richer per-game statistics, pagination, version eligibility, anti-abuse controls, and achievements.
+
 ## Proposed schemas
 
 - `PlayerGameProfile(id, user_id, game_id, created_at, updated_at)` unique on `(user_id, game_id)`.
 - `GameSave(id, profile_id, slot_key, game_version, data_json, revision, byte_size, created_at, updated_at)` unique on `(profile_id, slot_key)`; `slot_key` is bounded and `revision` increments on every write.
-- `PlaySession(id, user_id, game_id, started_at, ended_at, client_version, metadata_json)` with bounded metadata.
-- `Leaderboard(id, game_id, key, title, direction, best_score_only, created_at)` unique on `(game_id, key)` where direction is ascending/descending.
-- `Score(id, leaderboard_id, user_id, play_session_id, value, game_version, metadata_json, submitted_at)` with bounded metadata and server-controlled replacement behavior.
+- `GameSession` now exists as the current bounded session model; a future version may add client/game version metadata if needed.
+- `LeaderboardDefinition` and `LeaderboardEntry` now exist as the current definition/aggregate-entry models; a future version may add richer version eligibility and achievement links.
 - `Achievement(id, game_id, key, title, description)` unique on `(game_id, key)` and `PlayerAchievement(user_id, achievement_id, earned_at)` unique on `(user_id, achievement_id)`.
 
 ## Save contract
@@ -15,8 +16,8 @@
 
 ## Scores and leaderboards
 
-Proposed: `POST /games/{slug}/sessions`, `POST /games/{slug}/leaderboards/{key}/scores`, and `GET /games/{slug}/leaderboards/{key}?cursor=`. The server defines ascending/descending order, best-score-only replacement, pagination, version eligibility, session association, metadata size limits, and basic plausibility/rate checks. Never let a client choose replacement rules. SDK methods would mirror these endpoints after the server contracts are implemented.
+Current: `POST /games/{slug}/sessions`, `POST /games/{slug}/leaderboards/{key}/entries`, and `GET /leaderboards/{key}` with an optional game selector/limit. The server defines direction, `max`/`min`/`latest`/`sum` aggregation, metadata size limits, and bounded values. Future hardening should add pagination, version eligibility, session association, rate checks, and stronger plausibility rules. Never let a client choose replacement rules.
 
 ## Non-goals
 
-No generic arbitrary JSON querying, anti-cheat guarantee, implementation of any table or endpoint, or fabricated profile statistics now.
+No generic arbitrary JSON querying, anti-cheat guarantee, cloud-save implementation, or fabricated profile statistics now.

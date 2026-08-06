@@ -4,14 +4,18 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { AuthProvider } from './auth';
 import { Layout } from './App';
-import { CatalogPage, GameDetailPage, LoginPage, NotFoundPage, ProfilePage, RequireAuth } from './pages';
+import { ClanPage, GamesPage, GameDetailPage, HomePage, LeaderboardsPage, LoginPage, MyPlayerPage, NotFoundPage, ProfilePage, RequireAuth } from './pages';
 import './styles.css';
 
 const router = createBrowserRouter([{ element: <Layout />, children: [
-  { path: '/', element: <RequireAuth><CatalogPage /></RequireAuth> },
+  { path: '/', element: <RequireAuth><HomePage /></RequireAuth> },
   { path: '/login', element: <LoginPage /> },
+  { path: '/games', element: <RequireAuth><GamesPage /></RequireAuth> },
   { path: '/games/:gameSlug', element: <RequireAuth><GameDetailPage /></RequireAuth> },
   { path: '/profile', element: <RequireAuth><ProfilePage /></RequireAuth> },
+  { path: '/my-player', element: <RequireAuth><MyPlayerPage /></RequireAuth> },
+  { path: '/clan', element: <RequireAuth><ClanPage /></RequireAuth> },
+  { path: '/leaderboards', element: <RequireAuth><LeaderboardsPage /></RequireAuth> },
   { path: '*', element: <NotFoundPage /> },
 ] }]);
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });

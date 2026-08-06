@@ -6,7 +6,7 @@
   "scripts": {
     "setup": "node scripts/setup.mjs",
     "dev": "concurrently -k -n api,catalog,game -c blue,magenta,green \"npm run dev:api\" \"npm run dev:catalog\" \"npm run dev:game\"",
-    "dev:api": "cd apps/api && uv run uvicorn app.main:app --host 127.0.0.1 --port 8000",
+    "dev:api": "cd apps/api && uv run uvicorn app.main:app --host 127.0.0.1 --port 8001",
     "dev:catalog": "npm run dev --workspace @game-platform/catalog-web",
     "dev:game": "npm run dev --workspace @game-platform/sample-game",
     "test": "npm run test:api && npm run test:workspaces",

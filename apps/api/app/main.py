@@ -7,7 +7,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api.routes import auth, games, system
+from app.api.routes import auth, clan, game_sessions, games, leaderboards, player, presence, system
 from app.core.config import get_settings
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
@@ -20,8 +20,8 @@ def create_app() -> FastAPI:
         CORSMiddleware,
         allow_origins=[settings.catalog_origin, settings.sample_game_origin],
         allow_credentials=True,
-        allow_methods=["GET", "POST", "OPTIONS"],
-        allow_headers=["Content-Type"],
+        allow_methods=["GET", "POST", "PUT", "PATCH", "OPTIONS"],
+        allow_headers=["Accept", "Content-Type"],
     )
 
     @app.exception_handler(RequestValidationError)
@@ -31,6 +31,11 @@ def create_app() -> FastAPI:
     api = FastAPI()
     api.include_router(system.router)
     api.include_router(auth.router)
+    api.include_router(player.router)
+    api.include_router(clan.router)
+    api.include_router(presence.router)
+    api.include_router(game_sessions.router)
+    api.include_router(leaderboards.router)
     api.include_router(games.router)
     app.mount("/api/v1", api)
     return app
