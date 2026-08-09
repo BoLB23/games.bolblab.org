@@ -64,13 +64,13 @@ def test_game_launch_url_can_include_a_path_while_its_cors_origin_stays_strict(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("FLAPPY_MIKE_ORIGIN", "http://games.example.test")
-    monkeypatch.setenv("FLAPPY_MIKE_LAUNCH_URL", "http://games.example.test/games/flappy-mike")
+    monkeypatch.setenv("FLAPPY_MIKE_LAUNCH_URL", "http://games.example.test/games/flappy-mike/")
     from app.core.config import get_settings
 
     get_settings.cache_clear()
     settings = get_settings()
     assert settings.flappy_mike_origin == "http://games.example.test"
-    assert settings.flappy_mike_launch_url == "http://games.example.test/games/flappy-mike"
+    assert settings.flappy_mike_launch_url == "http://games.example.test/games/flappy-mike/"
     get_settings.cache_clear()
 
 

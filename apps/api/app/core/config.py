@@ -84,7 +84,7 @@ class Settings(BaseSettings):
             or parsed.fragment
         ):
             raise ValueError("Game launch URLs must be absolute http(s) URLs without credentials, queries, or fragments")
-        return value.rstrip("/") or value
+        return value
 
     @model_validator(mode="after")
     def validate_runtime_configuration(self) -> Settings:
