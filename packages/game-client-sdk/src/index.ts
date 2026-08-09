@@ -10,6 +10,8 @@ export interface PlatformUser {
   role: ClanRole;
   last_login_at: string | null;
   last_seen_at: string | null;
+  /** True until the player has saved their initial character. */
+  needs_player_setup: boolean;
 }
 
 export interface PlatformPlayer {

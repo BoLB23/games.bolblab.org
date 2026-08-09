@@ -1,9 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="120" height="170" viewBox="0 0 120 170">
-  <defs>
-  <filter id="paper" x="-10%" y="-10%" width="120%" height="120%">
-    <feTurbulence baseFrequency=".7" numOctaves="2" seed="7" type="fractalNoise" result="n"/>
-    <feColorMatrix in="n" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 .045 0"/>
-    <feBlend in="SourceGraphic" mode="multiply"/>
-  </filter></defs>
-  <g filter="url(#paper)"><g stroke="#35454b" stroke-width="7" fill="none"><path d="M27 164 48 66m45 98L72 66M20 132h80"/></g><path d="M22 16h76l-8 55H30Z" fill="#77898e" stroke="#35454b" stroke-width="7"/><path d="M25 16q35-23 70 0" fill="#a4b1b2" stroke="#35454b" stroke-width="7"/></g>
+  <!-- An old rooftop tank with a little PHL pride, kept low contrast for a true decoration. -->
+  <g stroke="#35464a" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M27 165 45 73m48 92L75 73M20 134h80M34 119h52" fill="none" stroke-width="7"/>
+    <path d="M24 27h72l-7 48H31z" fill="#788d8d" stroke-width="7"/>
+    <path d="M25 27q35-24 70 0" fill="#a9b9b3" stroke-width="7"/>
+    <path d="M34 76h52" stroke="#d7c36f" stroke-width="4"/>
+  </g>
+  <text x="60" y="57" text-anchor="middle" fill="#e9deaf" font-family="sans-serif" font-size="15" font-weight="700" letter-spacing="2">PHL</text>
+  <path d="M48 20v-15m-8 8 8-8 8 8" fill="none" stroke="#35464a" stroke-width="4" stroke-linecap="round"/>
 </svg>

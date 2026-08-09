@@ -1,4 +1,4 @@
-import { createGamePlatformClient, type GameSessionHandle } from '@bolb23/game-client-sdk';
+import { createGamePlatformClient, type GameSessionHandle, type LeaderboardResponse } from '@bolb23/game-client-sdk';
 import { GAME_ID, LEVEL_ID } from '../config/gameplay';
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8001/api/v1';
@@ -28,6 +28,10 @@ export class PlatformBridge {
 
   getBest(): number {
     return this.best;
+  }
+
+  getTopDistances(): Promise<LeaderboardResponse> {
+    return this.client.leaderboards.get('distance', GAME_ID, 10);
   }
 
   start(): void {

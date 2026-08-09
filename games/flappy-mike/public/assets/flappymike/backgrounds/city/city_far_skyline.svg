@@ -1,13 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="960" height="230" viewBox="0 0 960 230">
-  <defs>
-  <filter id="paper" x="-10%" y="-10%" width="120%" height="120%">
-    <feTurbulence baseFrequency=".7" numOctaves="2" seed="7" type="fractalNoise" result="n"/>
-    <feColorMatrix in="n" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 .045 0"/>
-    <feBlend in="SourceGraphic" mode="multiply"/>
-  </filter></defs>
-  <g filter="url(#paper)">
-  <path d="M0 230V135h45v-38h38v61h45v-86h54v102h42V48h45v126h40v-62h51v62h35V23h56v151h45V79h44v95h50v-48h48v48h42V58h58v116h45v-76h42v76h53v-38h38v94Z" fill="#59758a"/>
-  <path d="M0 230V178h90v-35h112v35h121v-48h92v48h114v-27h135v27h108v-40h96v40h92v52Z" fill="#3e586a"/>
-  <g fill="#d7b96a" opacity=".55"><path d="M238 64h7v94h-7zM414 40h8v120h-8zM681 72h7v92h-7z"/><path d="M225 64h34l-8-10h-18zM664 72h42l-10-11h-21z"/></g>
-</g>
+  <defs><linearGradient id="farFill" x2="0" y2="1"><stop stop-color="#7793a1"/><stop offset="1" stop-color="#54707d"/></linearGradient></defs>
+  <!-- Soft Center City-inspired silhouette: hat-topped tower, spires, old industrial roofs and tanks. -->
+  <path d="M0 230V165h37v-34h35v24h39v-49h48v49h42V82h34v73h36V119h42v36h31V42h37v113h31V19h40v136h28V72h48v83h31v-30h41v30h29V65h38v90h42v-52h33v52h36v-23h47v23h45v75Z" fill="url(#farFill)"/>
+  <path d="M391 19h40l-5-19h-30Z" fill="#7793a1"/>
+  <path d="M201 82l17-16 17 16M548 125l18-24 18 24" fill="#7793a1"/>
+  <g fill="#99adb1" opacity=".72"><rect x="15" y="170" width="87" height="60"/><rect x="169" y="161" width="79" height="69"/><rect x="290" y="177" width="107" height="53"/><rect x="470" y="163" width="83" height="67"/><rect x="629" y="171" width="100" height="59"/><rect x="781" y="163" width="116" height="67"/><rect x="905" y="177" width="38" height="53"/></g>
+  <g fill="#c6b570" opacity=".52"><path d="M405 43h11v102h-11z"/><path d="M206 89h24l-6-8h-11z"/><path d="M753 111h25l-6-8h-12z"/></g>
+  <g fill="#54707d" opacity=".85"><path d="M80 137h34l-6-18H86z"/><ellipse cx="98" cy="127" rx="18" ry="7"/><path d="M900 146h30l-5-15h-20z"/><ellipse cx="915" cy="127" rx="16" ry="6"/></g>
+  <path d="M0 202q70-11 140 0t140 0 140 0 140 0 140 0 140 0 140 0 140 0v28H0Z" fill="#405b68" opacity=".55"/>
 </svg>

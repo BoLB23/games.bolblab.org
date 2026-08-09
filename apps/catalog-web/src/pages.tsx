@@ -9,7 +9,7 @@ import type {
   PlatformClanMember,
 } from '@bolb23/game-client-sdk';
 import { authMode, client, devLogin, getDevelopmentUsers, googleLoginUrl } from './api';
-import { useAuth } from './auth';
+import { markGoogleLoginIntent, PLAYER_QUERY_KEY, useAuth } from './auth';
 import { CapabilityTags, GameArt, GameCard, HAIRCUT_OPTIONS, PLAYER_PALETTES, PlayerAvatar, RoleBadge } from './components';
 
 function Loading({ label = 'Loading…' }: { label?: string }) { return <p className="state">{label}</p>; }
@@ -53,17 +53,24 @@ export function formatLeaderboardValue(value: number, unit: string): string {
 export function RequireAuth({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth(); const location = useLocation();
   if (isLoading) return <Loading />;
-  return user ? <>{children}</> : <Navigate to="/login" replace state={{ from: location.pathname }} />;
+  if (!user) return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+  if (user.needs_player_setup && location.pathname !== '/my-player') {
+    return <Navigate to="/my-player" replace state={{ from: location.pathname, onboarding: true }} />;
+  }
+  return <>{children}</>;
 }
 
 export function LoginPage() {
   const navigate = useNavigate(); const location = useLocation(); const { refetch, user } = useAuth();
   const users = useQuery({ queryKey: ['development-users'], queryFn: getDevelopmentUsers });
-  const login = useMutation({ mutationFn: devLogin, onSuccess: async () => { await refetch(); navigate((location.state as { from?: string } | null)?.from ?? '/', { replace: true }); } });
+  const login = useMutation({ mutationFn: devLogin, onSuccess: async () => {
+    const currentUser = await refetch();
+    navigate(currentUser?.needs_player_setup ? '/my-player' : (location.state as { from?: string } | null)?.from ?? '/', { replace: true });
+  } });
   if (user) return <Navigate to="/" replace />;
   if (authMode === 'oidc') {
     const target = (location.state as { from?: string } | null)?.from ?? '/';
-    return <main className="narrow"><span className="kicker">Private arcade</span><h1>Sign in to play</h1><p>Use your Google account to enter the arcade.</p><a className="button primary" href={googleLoginUrl(target)}>Continue with Google</a></main>;
+    return <main className="narrow"><span className="kicker">Private arcade</span><h1>Sign in to play</h1><p>Use your Google account to enter the arcade.</p><a className="button primary" href={googleLoginUrl(target)} onClick={markGoogleLoginIntent}>Continue with Google</a></main>;
   }
   return <main className="narrow"><span className="kicker">Local development only</span><h1>Choose a development player</h1><p>This temporary login flow is not production authentication.</p>{users.isLoading && <Loading />}{users.isError && <ErrorState>Development users are unavailable. Run the database migration and seed commands.</ErrorState>}<div className="user-list">{users.data?.map((candidate) => <button key={candidate.id} className="user-choice" onClick={() => login.mutate(candidate.id)} disabled={login.isPending}><strong>{candidate.display_name}</strong><span>{candidate.email} · {candidate.role}</span></button>)}</div>{login.isError && <ErrorState>Login failed. Please select a seeded development user.</ErrorState>}</main>;
 }
@@ -102,16 +109,33 @@ export function GameDetailPage() {
 type PlayerDraft = Pick<PlayerProfileResponse, 'nickname' | 'haircut' | 'hair_color' | 'tshirt_color' | 'pants_color' | 'shoe_color'>;
 
 export function MyPlayerPage() {
-  const queryClient = useQueryClient();
-  const player = useQuery({ queryKey: ['player'], queryFn: client.players.getCurrent });
+  const queryClient = useQueryClient(); const { user, refetch: refetchCurrentUser } = useAuth();
+  const player = useQuery({ queryKey: PLAYER_QUERY_KEY(user?.id ?? 'anonymous'), queryFn: client.players.getCurrent, enabled: Boolean(user) });
   const [draft, setDraft] = useState<PlayerDraft | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [completedOnboarding, setCompletedOnboarding] = useState(false);
   useEffect(() => {
     if (player.data) {
       setDraft({ nickname: player.data.nickname, haircut: player.data.haircut, hair_color: player.data.hair_color, tshirt_color: player.data.tshirt_color, pants_color: player.data.pants_color, shoe_color: player.data.shoe_color });
     }
   }, [player.data]);
-  const save = useMutation({ mutationFn: (input: PlayerUpdateInput) => client.players.update(input), onSuccess: (saved) => { queryClient.setQueryData(['player'], saved); setDraft(saved); setValidationError(null); } });
+  const save = useMutation({
+    mutationFn: async (input: PlayerUpdateInput) => {
+      const currentUser = await refetchCurrentUser();
+      if (!currentUser || currentUser.id !== user?.id) {
+        throw new Error('Your account changed in another tab. Reloaded your session; please review this player before saving.');
+      }
+      return client.players.update(input);
+    },
+    onSuccess: async (saved) => {
+      if (!user) return;
+      queryClient.setQueryData(PLAYER_QUERY_KEY(user.id), saved);
+      setDraft(saved);
+      setValidationError(null);
+      const completedUser = await refetchCurrentUser();
+      if (user.needs_player_setup && completedUser && !completedUser.needs_player_setup) setCompletedOnboarding(true);
+    },
+  });
   if (player.isLoading || !draft) return <main><Loading label="Calling your player out of the tunnel…" /></main>;
   if (player.isError) return <main><ErrorState>We could not load your player. Please try again.</ErrorState></main>;
   const update = <K extends keyof PlayerDraft>(field: K, value: PlayerDraft[K]) => setDraft((current) => current ? { ...current, [field]: value } : current);
@@ -128,7 +152,8 @@ export function MyPlayerPage() {
     save.mutate({ nickname, haircut: draft.haircut, hair_color: draft.hair_color, tshirt_color: draft.tshirt_color, pants_color: draft.pants_color, shoe_color: draft.shoe_color });
   };
   const error = validationError ?? (save.error instanceof Error ? save.error.message : null);
-  return <main className="player-page"><div className="page-intro"><span className="kicker">My player · shared across the arcade</span><h1>Make them yours.</h1><p className="lede">This is the face your friends will see on every leaderboard and, eventually, inside every game.</p></div><form className="player-editor" onSubmit={submit}><section className="player-preview-panel"><span className="eyebrow">Live preview</span><PlayerAvatar appearance={{ ...draft, nickname: draft.nickname || 'Player' }} size="large" label={`${draft.nickname || 'Player'} preview`} /><strong className="preview-name">{draft.nickname || 'Player'}</strong><span className="preview-note">Your arcade identity</span></section><section className="player-controls"><label className="field-label" htmlFor="nickname">Nickname <span>{draft.nickname.length}/9</span></label><input id="nickname" value={draft.nickname} maxLength={9} onChange={(event) => update('nickname', event.target.value)} aria-describedby="nickname-help" autoComplete="off" /><small id="nickname-help">Trimmed on save · fewer than 10 characters</small><div className="editor-control"><span className="field-label">Haircut</span><div className="cycle-control"><button type="button" aria-label="Previous haircut" onClick={() => cycleHaircut(-1)}>←</button><strong>{HAIRCUT_OPTIONS.find((option) => option.key === draft.haircut)?.label ?? draft.haircut}</strong><button type="button" aria-label="Next haircut" onClick={() => cycleHaircut(1)}>→</button></div></div>{(['hair_color', 'tshirt_color', 'pants_color', 'shoe_color'] as const).map((field) => <fieldset className="palette-control" key={field}><legend>{field === 'tshirt_color' ? 'T-shirt' : field.replace('_color', '').replace(/^./, (letter) => letter.toUpperCase())}</legend><div className="swatches">{PLAYER_PALETTES[field].map((color) => <button key={color} type="button" className={`swatch ${draft[field] === color ? 'selected' : ''}`} style={{ backgroundColor: color }} aria-label={`Choose ${field.replace('_color', '')} color ${color}`} aria-pressed={draft[field] === color} onClick={() => update(field, color)} />)}</div></fieldset>)}{error && <p className="state error" role="alert">{error}</p>}{save.isSuccess && !error && <p className="save-success" role="status">Saved. Your player is ready for the next run.</p>}<button className="save-button" type="submit" disabled={save.isPending}>{save.isPending ? 'Saving…' : 'Save player'}</button></section></form></main>;
+  const isOnboarding = user?.needs_player_setup;
+  return <main className="player-page"><div className="page-intro"><span className="kicker">{isOnboarding ? 'Welcome to the arcade' : 'My player · shared across the arcade'}</span><h1>{isOnboarding ? 'Create your character.' : 'Make them yours.'}</h1><p className="lede">This is the face your friends will see on every leaderboard and, eventually, inside every game.</p></div><form className="player-editor" onSubmit={submit}><section className="player-preview-panel"><span className="eyebrow">Live preview</span><PlayerAvatar appearance={{ ...draft, nickname: draft.nickname || 'Player' }} size="large" label={`${draft.nickname || 'Player'} preview`} /><strong className="preview-name">{draft.nickname || 'Player'}</strong><span className="preview-note">Your arcade identity</span></section><section className="player-controls"><label className="field-label" htmlFor="nickname">Nickname <span>{draft.nickname.length}/9</span></label><input id="nickname" value={draft.nickname} maxLength={9} onChange={(event) => update('nickname', event.target.value)} aria-describedby="nickname-help" autoComplete="off" /><small id="nickname-help">Trimmed on save · fewer than 10 characters</small><div className="editor-control"><span className="field-label">Haircut</span><div className="cycle-control"><button type="button" aria-label="Previous haircut" onClick={() => cycleHaircut(-1)}>←</button><strong>{HAIRCUT_OPTIONS.find((option) => option.key === draft.haircut)?.label ?? draft.haircut}</strong><button type="button" aria-label="Next haircut" onClick={() => cycleHaircut(1)}>→</button></div></div>{(['hair_color', 'tshirt_color', 'pants_color', 'shoe_color'] as const).map((field) => <fieldset className="palette-control" key={field}><legend>{field === 'tshirt_color' ? 'T-shirt' : field.replace('_color', '').replace(/^./, (letter) => letter.toUpperCase())}</legend><div className="swatches">{PLAYER_PALETTES[field].map((color) => <button key={color} type="button" className={`swatch ${draft[field] === color ? 'selected' : ''}`} style={{ backgroundColor: color }} aria-label={`Choose ${field.replace('_color', '')} color ${color}`} aria-pressed={draft[field] === color} onClick={() => update(field, color)} />)}</div></fieldset>)}{error && <p className="state error" role="alert">{error}</p>}{save.isSuccess && !error && <p className="save-success" role="status">{completedOnboarding ? 'Character created. You are ready for the next run.' : 'Saved. Your player is ready for the next run.'}</p>}<button className="save-button" type="submit" disabled={save.isPending}>{save.isPending ? 'Saving…' : isOnboarding ? 'Create character' : 'Save player'}</button></section></form></main>;
 }
 
 const ROLE_OPTIONS: ClanRole[] = ['peon', 'member', 'staff', 'overlord'];

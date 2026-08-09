@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: games-oidc-config
+  namespace: bolblab-games
+data:
+  APP_ENV: production
+  AUTH_MODE: oidc
+  OIDC_ISSUER: https://accounts.google.com
+  # This canonical public HTTPS origin must agree with OIDC_CALLBACK_URL in
+  # games-secrets and the Google OAuth client registration.
+  CATALOG_ORIGIN: https://games.bolblab.org
+  SAMPLE_GAME_ORIGIN: https://games.bolblab.org
+  SAMPLE_GAME_LAUNCH_URL: https://games.bolblab.org/games/sample-game/
+  FLAPPY_MIKE_ORIGIN: https://games.bolblab.org
+  FLAPPY_MIKE_LAUNCH_URL: https://games.bolblab.org/games/flappy-mike/

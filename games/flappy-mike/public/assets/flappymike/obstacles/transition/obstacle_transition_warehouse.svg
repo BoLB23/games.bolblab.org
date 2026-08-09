@@ -1,14 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="128" height="512" viewBox="0 0 128 512">
-  <defs>
-  <filter id="paper" x="-10%" y="-10%" width="120%" height="120%">
-    <feTurbulence baseFrequency=".7" numOctaves="2" seed="7" type="fractalNoise" result="n"/>
-    <feColorMatrix in="n" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 .045 0"/>
-    <feBlend in="SourceGraphic" mode="multiply"/>
-  </filter></defs>
-  <g filter="url(#paper)">
-  <rect x="5" y="0" width="118" height="512" rx="10" fill="#7d8581" stroke="#342f2d" stroke-width="8"/>
-  <path d="M16 66 64 21l48 45v372H16Z" fill="#87918f" stroke="#3c4444" stroke-width="6"/><g fill="#d8d2bb" stroke="#3c4444" stroke-width="5"><rect x="28" y="100" width="72" height="54"/><rect x="28" y="190" width="72" height="54"/><rect x="28" y="280" width="72" height="54"/><rect x="28" y="370" width="72" height="54"/></g>
-  <path d="M3 467h122v45H3Z" fill="#c9ba91" stroke="#342f2d" stroke-width="8"/>
-  <path d="M14 477h100" stroke="#fff4cf" stroke-width="5" opacity=".45"/>
-</g>
+  <!-- The edge-of-town industrial facade retains hints of brick and loading bays. -->
+  <path d="M10 0h108v512H10z" fill="#71817c" stroke="#303a39" stroke-width="8" stroke-linejoin="round"/>
+  <path d="M8 0h112v28H8zm0 484h112v28H8z" fill="#3f4d4d" stroke="#2f3837" stroke-width="6"/>
+  <path d="M17 10h94M17 502h94" stroke="#ead389" stroke-width="4"/>
+  <path d="M18 48h92v89H18z" fill="#87958d" stroke="#3a4744" stroke-width="6"/>
+  <path d="M18 166h92v106H18zM18 300h92v153H18z" fill="#687874" stroke="#3a4744" stroke-width="6"/>
+  <g fill="#d8d2b5" stroke="#3b4845" stroke-width="4"><path d="M29 66h70v49H29zM29 188h70v63H29zM29 324h70v57H29zM29 401h70v38H29z"/></g>
+  <g stroke="#75866c" stroke-width="4"><path d="M35 78h58M35 101h58M35 203h58M35 225h58M35 340h58M35 363h58M35 416h58"/></g>
+  <path d="M17 145h94M17 281h94" stroke="#bb7b45" stroke-width="8"/>
 </svg>

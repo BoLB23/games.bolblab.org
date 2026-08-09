@@ -1,14 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="960" height="145" viewBox="0 0 960 145">
-  <defs>
-  <filter id="paper" x="-10%" y="-10%" width="120%" height="120%">
-    <feTurbulence baseFrequency=".7" numOctaves="2" seed="7" type="fractalNoise" result="n"/>
-    <feColorMatrix in="n" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 .045 0"/>
-    <feBlend in="SourceGraphic" mode="multiply"/>
-  </filter></defs>
-  <g filter="url(#paper)">
-  <rect y="119" width="960" height="26" fill="#65795a"/>
-  <g stroke="#4d4c42" stroke-width="6"><path d="M93 21v116m-39-73h80M569 13v124m-40-78h82"/></g>
-  <g fill="#4e754c"><circle cx="258" cy="89" r="47"/><circle cx="337" cy="81" r="58"/><circle cx="748" cy="85" r="53"/><circle cx="846" cy="94" r="44"/></g>
-  <path d="M0 126h960" stroke="#d6d0af" stroke-width="7" stroke-dasharray="60 24"/>
-</g>
+  <rect y="114" width="960" height="31" fill="#567546"/>
+  <path d="M0 119q60-19 119 1t119 0 119 0 119 0 119 0 119 0 119 0 119 0 119 0v25H0Z" fill="#6b8d50"/>
+  <g fill="#4d7748"><path d="M12 119q18-68 38 0 18-92 42 0 22-59 38 0zM180 119q18-77 39 0 20-102 44 0 21-66 40 0zM481 119q17-72 38 0 18-91 42 0 19-63 39 0zM759 119q20-82 41 0 20-97 43 0 20-67 39 0z"/></g>
+  <g stroke="#584d42" stroke-width="6" fill="none"><path d="M101 27v111M61 61h80M656 17v121M614 52h83"/><path d="M101 42 656 33" stroke-width="2"/></g>
+  <g stroke="#80603a" stroke-width="5" opacity=".9"><path d="M0 88h960M0 112h960"/><path d="M18 70v75M138 70v75M258 70v75M378 70v75M498 70v75M618 70v75M738 70v75M858 70v75"/></g>
+  <path d="M0 130h960" stroke="#d5c89e" stroke-width="6" stroke-dasharray="40 20" opacity=".88"/>
 </svg>

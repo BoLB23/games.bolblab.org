@@ -1,13 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="960" height="70" viewBox="0 0 960 70">
-  <defs>
-  <filter id="paper" x="-10%" y="-10%" width="120%" height="120%">
-    <feTurbulence baseFrequency=".7" numOctaves="2" seed="7" type="fractalNoise" result="n"/>
-    <feColorMatrix in="n" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 .045 0"/>
-    <feBlend in="SourceGraphic" mode="multiply"/>
-  </filter></defs>
-  <g filter="url(#paper)">
-  <rect width="960" height="70" fill="#465155"/>
-  <path d="M0 12h960" stroke="#747f79" stroke-width="6"/>
-  <path d="M0 45h960" stroke="#8d9892" stroke-width="5" stroke-dasharray="42 18"/>
-</g>
+  <rect width="960" height="70" fill="#404a4e"/>
+  <path d="M0 11h960" stroke="#85918c" stroke-width="5"/>
+  <path d="M0 17h960" stroke="#29393d" stroke-width="3" opacity=".7"/>
+  <path d="M0 46h960" stroke="#d5c786" stroke-width="4" stroke-dasharray="40 20" opacity=".9"/>
+  <path d="M0 65h960" stroke="#303b40" stroke-width="5"/>
+  <g stroke="#64716d" stroke-width="2" opacity=".55"><path d="M52 18v47M171 18v47M291 18v47M411 18v47M531 18v47M651 18v47M771 18v47M891 18v47"/></g>
 </svg>

@@ -3,10 +3,14 @@ set -euo pipefail
 
 usage() {
   cat <<'EOF'
-Usage: scripts/deploy [--tag <tag>] [--context <context>] [--image-repo <repo>]
+Usage: scripts/deploy [--tag <tag>] [--context <context>] [--image-repo <repo>] [--oidc]
 
 Deploys the API and web images to bolblab-games. The TLS ingress is used only
-when the pre-existing games-int-bolblab-org-tls secret is present.
+when the pre-existing games-bolblab-org-tls secret is present.
+
+--oidc applies the production Google OIDC API overlay. It requires that TLS
+secret and an OIDC-ready games-secrets secret; build the web image with
+VITE_AUTH_MODE=oidc before using it.
 EOF
 }
 
@@ -14,6 +18,7 @@ NAMESPACE="bolblab-games"
 CONTEXT=""
 IMAGE_REPO="ghcr.io/bolb23/games.bolblab.org"
 TAG="$(git rev-parse --short HEAD 2>/dev/null || echo latest)"
+OIDC=false
 
 require_command() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -35,6 +40,10 @@ while [ "$#" -gt 0 ]; do
     --image-repo)
       IMAGE_REPO="${2:-}"
       shift 2
+      ;;
+    --oidc)
+      OIDC=true
+      shift
       ;;
     --help|-h)
       usage
@@ -72,21 +81,50 @@ echo "Deploying $API_IMAGE and $WEB_IMAGE to $NAMESPACE"
 "${KUBECTL[@]}" apply -f "$MANIFEST_DIR/pvc.yaml"
 "${KUBECTL[@]}" apply -f "$MANIFEST_DIR/service.yaml"
 
-if "${KUBECTL[@]}" -n "$NAMESPACE" get secret games-int-bolblab-org-tls >/dev/null 2>&1; then
-  echo "Using existing TLS secret games-int-bolblab-org-tls"
+HAS_TLS=false
+if "${KUBECTL[@]}" -n "$NAMESPACE" get secret games-bolblab-org-tls >/dev/null 2>&1; then
+  HAS_TLS=true
+fi
+
+if [ "$HAS_TLS" = true ] || [ "$OIDC" = true ]; then
+  if [ "$HAS_TLS" = true ]; then
+    echo "Using existing TLS secret games-bolblab-org-tls"
+  else
+    echo "Applying the TLS ingress and waiting for cert-manager to create games-bolblab-org-tls"
+  fi
   "${KUBECTL[@]}" apply -f "$MANIFEST_DIR/ingress-tls.yaml"
 else
   echo "TLS secret not found; serving HTTP only"
   "${KUBECTL[@]}" apply -f "$MANIFEST_DIR/ingress.yaml"
 fi
 
+if [ "$OIDC" = true ]; then
+  for _attempt in $(seq 1 60); do
+    if "${KUBECTL[@]}" -n "$NAMESPACE" get secret games-bolblab-org-tls >/dev/null 2>&1; then
+      HAS_TLS=true
+      break
+    fi
+    sleep 5
+  done
+  if [ "$HAS_TLS" != true ]; then
+    echo "Error: games-bolblab-org-tls was not created within five minutes. Check cert-manager and the Cloudflare DNS challenge." >&2
+    exit 1
+  fi
+fi
+
 if ! "${KUBECTL[@]}" -n "$NAMESPACE" get secret games-secrets >/dev/null 2>&1; then
   echo "Error: games-secrets is required in namespace $NAMESPACE" >&2
-  echo "Create it from k8s/secret.example.yaml after replacing SESSION_SECRET." >&2
+  echo "Create it from k8s/secret.example.yaml after replacing SESSION_SECRET (and the OIDC keys for --oidc)." >&2
   exit 1
 fi
 
-sed "s|image: .*|image: $API_IMAGE|" "$MANIFEST_DIR/deployment-api.yaml" | "${KUBECTL[@]}" apply -f -
+if [ "$OIDC" = true ]; then
+  "${KUBECTL[@]}" kustomize --load-restrictor LoadRestrictionsNone "$MANIFEST_DIR/overlays/google-oidc" \
+    | sed "s|image: .*|image: $API_IMAGE|" \
+    | "${KUBECTL[@]}" apply -f -
+else
+  sed "s|image: .*|image: $API_IMAGE|" "$MANIFEST_DIR/deployment-api.yaml" | "${KUBECTL[@]}" apply -f -
+fi
 sed "s|image: .*|image: $WEB_IMAGE|" "$MANIFEST_DIR/deployment-web.yaml" | "${KUBECTL[@]}" apply -f -
 
 "${KUBECTL[@]}" -n "$NAMESPACE" rollout status deployment/games-api --timeout=5m

@@ -14,6 +14,7 @@ class UserResponse(BaseModel):
     avatar_url: str | None
     is_admin: bool
     role: ClanRole
+    needs_player_setup: bool
     last_login_at: datetime | None
     last_seen_at: datetime | None
 

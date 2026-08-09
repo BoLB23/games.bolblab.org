@@ -1,18 +1,16 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="960" height="540" viewBox="0 0 960 540">
   <defs>
-  <filter id="paper" x="-10%" y="-10%" width="120%" height="120%">
-    <feTurbulence baseFrequency=".7" numOctaves="2" seed="7" type="fractalNoise" result="n"/>
-    <feColorMatrix in="n" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 .045 0"/>
-    <feBlend in="SourceGraphic" mode="multiply"/>
-  </filter></defs>
-  <g filter="url(#paper)">
-  <rect width="960" height="540" fill="#78b8dd"/>
-  <circle cx="790" cy="88" r="48" fill="#ffe7a0" opacity=".9"/>
-  <g fill="#fff7df" opacity=".78">
-  <path d="M70 120c18-31 59-28 72 2 31-12 62 7 61 38H35c-2-24 14-39 35-40Z"/>
-  <path d="M610 74c15-25 49-24 61 1 26-9 52 8 51 33H581c0-19 12-31 29-34Z"/>
-  <path d="M900 185c15-22 43-20 53 2 18-7 37 4 39 22h-118c1-13 10-22 26-24Z"/>
-</g>
-  <path d="M0 430 Q240 430 480 430 T960 430V540H0Z" fill="#a8c4c8" opacity=".35"/>
-</g>
+    <linearGradient id="citySky" x2="0" y2="1"><stop stop-color="#78b7da"/><stop offset=".62" stop-color="#a4cde0"/><stop offset="1" stop-color="#d9d7c3"/></linearGradient>
+    <linearGradient id="haze" x2="0" y2="1"><stop stop-color="#e9e0c8" stop-opacity="0"/><stop offset="1" stop-color="#e9e0c8" stop-opacity=".72"/></linearGradient>
+  </defs>
+  <rect width="960" height="540" fill="url(#citySky)"/>
+  <circle cx="790" cy="86" r="47" fill="#ffe6a1" opacity=".82"/>
+  <circle cx="790" cy="86" r="63" fill="none" stroke="#fff0bd" stroke-width="4" opacity=".22"/>
+  <g fill="#fff9eb" opacity=".72">
+    <path d="M54 139c17-27 54-27 70-1 27-12 61 5 63 34H22c1-20 13-31 32-33Z"/>
+    <path d="M530 88c14-22 45-22 59 0 25-9 51 7 52 32H497c1-18 12-29 33-32Z"/>
+    <path d="M861 188c13-20 41-19 51 1 21-6 40 7 42 25H830c2-14 12-23 31-26Z"/>
+  </g>
+  <path d="M0 355C175 331 327 360 480 344S777 337 960 355v186H0Z" fill="url(#haze)"/>
+  <g fill="#dfe7e1" opacity=".27"><path d="M0 411q96-22 192 0t192 0 192 0 192 0 192 0v129H0Z"/><path d="M0 446q120-16 240 0t240 0 240 0 240 0v94H0Z" fill="#a7bec3"/></g>
 </svg>

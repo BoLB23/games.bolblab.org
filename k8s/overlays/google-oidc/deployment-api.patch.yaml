@@ -1,0 +1,179 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: games-api
+  namespace: bolblab-games
+spec:
+  template:
+    spec:
+      initContainers:
+        - name: migrate-and-seed
+          # OIDC production must not create the deterministic development users.
+          command:
+            - /bin/sh
+            - -ec
+            - /app/.venv/bin/alembic upgrade head
+          env:
+            - name: APP_ENV
+              value: null
+              valueFrom:
+                configMapKeyRef:
+                  name: games-oidc-config
+                  key: APP_ENV
+            - name: AUTH_MODE
+              valueFrom:
+                configMapKeyRef:
+                  name: games-oidc-config
+                  key: AUTH_MODE
+            - name: SESSION_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: games-secrets
+                  key: SESSION_SECRET
+            - name: SESSION_COOKIE_NAME
+              value: __Host-game_platform_session
+            - name: SESSION_COOKIE_SECURE
+              value: "true"
+            - name: OIDC_ISSUER
+              valueFrom:
+                configMapKeyRef:
+                  name: games-oidc-config
+                  key: OIDC_ISSUER
+            - name: OIDC_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: games-secrets
+                  key: OIDC_CLIENT_ID
+            - name: OIDC_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: games-secrets
+                  key: OIDC_CLIENT_SECRET
+            - name: OIDC_CALLBACK_URL
+              valueFrom:
+                secretKeyRef:
+                  name: games-secrets
+                  key: OIDC_CALLBACK_URL
+            - name: OIDC_TRANSACTION_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: games-secrets
+                  key: OIDC_TRANSACTION_SECRET
+            - name: OVERLORD_EMAIL
+              valueFrom:
+                secretKeyRef:
+                  name: games-secrets
+                  key: OVERLORD_EMAIL
+            - name: CATALOG_ORIGIN
+              value: null
+              valueFrom:
+                configMapKeyRef:
+                  name: games-oidc-config
+                  key: CATALOG_ORIGIN
+            - name: SAMPLE_GAME_ORIGIN
+              value: null
+              valueFrom:
+                configMapKeyRef:
+                  name: games-oidc-config
+                  key: SAMPLE_GAME_ORIGIN
+            - name: SAMPLE_GAME_LAUNCH_URL
+              value: null
+              valueFrom:
+                configMapKeyRef:
+                  name: games-oidc-config
+                  key: SAMPLE_GAME_LAUNCH_URL
+            - name: FLAPPY_MIKE_ORIGIN
+              value: null
+              valueFrom:
+                configMapKeyRef:
+                  name: games-oidc-config
+                  key: FLAPPY_MIKE_ORIGIN
+            - name: FLAPPY_MIKE_LAUNCH_URL
+              value: null
+              valueFrom:
+                configMapKeyRef:
+                  name: games-oidc-config
+                  key: FLAPPY_MIKE_LAUNCH_URL
+      containers:
+        - name: api
+          env:
+            - name: APP_ENV
+              value: null
+              valueFrom:
+                configMapKeyRef:
+                  name: games-oidc-config
+                  key: APP_ENV
+            - name: AUTH_MODE
+              valueFrom:
+                configMapKeyRef:
+                  name: games-oidc-config
+                  key: AUTH_MODE
+            - name: SESSION_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: games-secrets
+                  key: SESSION_SECRET
+            - name: SESSION_COOKIE_NAME
+              value: __Host-game_platform_session
+            - name: SESSION_COOKIE_SECURE
+              value: "true"
+            - name: OIDC_ISSUER
+              valueFrom:
+                configMapKeyRef:
+                  name: games-oidc-config
+                  key: OIDC_ISSUER
+            - name: OIDC_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: games-secrets
+                  key: OIDC_CLIENT_ID
+            - name: OIDC_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: games-secrets
+                  key: OIDC_CLIENT_SECRET
+            - name: OIDC_CALLBACK_URL
+              valueFrom:
+                secretKeyRef:
+                  name: games-secrets
+                  key: OIDC_CALLBACK_URL
+            - name: OIDC_TRANSACTION_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: games-secrets
+                  key: OIDC_TRANSACTION_SECRET
+            - name: OVERLORD_EMAIL
+              valueFrom:
+                secretKeyRef:
+                  name: games-secrets
+                  key: OVERLORD_EMAIL
+            - name: CATALOG_ORIGIN
+              value: null
+              valueFrom:
+                configMapKeyRef:
+                  name: games-oidc-config
+                  key: CATALOG_ORIGIN
+            - name: SAMPLE_GAME_ORIGIN
+              value: null
+              valueFrom:
+                configMapKeyRef:
+                  name: games-oidc-config
+                  key: SAMPLE_GAME_ORIGIN
+            - name: SAMPLE_GAME_LAUNCH_URL
+              value: null
+              valueFrom:
+                configMapKeyRef:
+                  name: games-oidc-config
+                  key: SAMPLE_GAME_LAUNCH_URL
+            - name: FLAPPY_MIKE_ORIGIN
+              value: null
+              valueFrom:
+                configMapKeyRef:
+                  name: games-oidc-config
+                  key: FLAPPY_MIKE_ORIGIN
+            - name: FLAPPY_MIKE_LAUNCH_URL
+              value: null
+              valueFrom:
+                configMapKeyRef:
+                  name: games-oidc-config
+                  key: FLAPPY_MIKE_LAUNCH_URL

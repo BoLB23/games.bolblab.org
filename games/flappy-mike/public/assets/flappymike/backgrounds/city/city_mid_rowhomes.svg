@@ -1,15 +1,17 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="960" height="180" viewBox="0 0 960 180">
-  <defs>
-  <filter id="paper" x="-10%" y="-10%" width="120%" height="120%">
-    <feTurbulence baseFrequency=".7" numOctaves="2" seed="7" type="fractalNoise" result="n"/>
-    <feColorMatrix in="n" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 .045 0"/>
-    <feBlend in="SourceGraphic" mode="multiply"/>
-  </filter></defs>
-  <g filter="url(#paper)">
-  <rect y="55" width="960" height="125" fill="#9b4f44"/>
-  <path d="M0 55h105V31h105v24h120V18h112v37h98V36h128v19h97V25h113v30h82v125H0Z" fill="#a95a4b" stroke="#573c39" stroke-width="6"/>
-  <g fill="#f0c778" stroke="#573c39" stroke-width="4"><rect x="24" y="76" width="28" height="44" rx="3"/><rect x="104" y="86" width="28" height="44" rx="3"/><rect x="184" y="76" width="28" height="44" rx="3"/><rect x="264" y="86" width="28" height="44" rx="3"/><rect x="344" y="76" width="28" height="44" rx="3"/><rect x="424" y="86" width="28" height="44" rx="3"/><rect x="504" y="76" width="28" height="44" rx="3"/><rect x="584" y="86" width="28" height="44" rx="3"/><rect x="664" y="76" width="28" height="44" rx="3"/><rect x="744" y="86" width="28" height="44" rx="3"/><rect x="824" y="76" width="28" height="44" rx="3"/><rect x="904" y="86" width="28" height="44" rx="3"/></g>
-  <g stroke="#75433c" stroke-width="3" opacity=".55"><path d="M0 72h960"/><path d="M0 87h960"/><path d="M0 102h960"/><path d="M0 117h960"/><path d="M0 132h960"/><path d="M0 147h960"/><path d="M0 162h960"/><path d="M0 177h960"/></g>
-  <g fill="#526870"><rect x="145" y="3" width="44" height="25" rx="3"/><rect x="601" y="11" width="52" height="25" rx="3"/></g>
-</g>
+  <!-- Dense, intentionally uneven Philadelphia rowhomes. The block fills both edges for a clean tile repeat. -->
+  <rect width="960" height="180" fill="#6f534d"/>
+  <g stroke="#563b39" stroke-width="5" stroke-linejoin="round">
+    <path d="M0 180V58h74V31h69v149ZM143 180V48h84V20h72v160ZM299 180V65h62V38h79v142ZM440 180V51h83V25h64v155ZM587 180V60h70V34h91v146ZM748 180V47h69V18h79v162ZM896 180V58h64v122Z" fill="#a45445"/>
+    <path d="M0 57h74M143 48h84M299 65h62M440 51h83M587 60h70M748 47h69M896 58h64" stroke="#d39a67" stroke-width="7"/>
+  </g>
+  <g fill="#6d4441"><path d="M74 31h69l-9-12H83z"/><path d="M227 20h72l-8-13h-55z"/><path d="M361 38h79l-10-12h-57z"/><path d="M523 25h64l-8-12h-48z"/><path d="M657 34h91l-10-13h-66z"/><path d="M817 18h79l-9-12h-61z"/></g>
+  <g fill="#e7c57e" stroke="#593d3b" stroke-width="3">
+    <rect x="17" y="78" width="23" height="30"/><rect x="46" y="78" width="18" height="30"/><rect x="161" y="68" width="23" height="34"/><rect x="191" y="68" width="22" height="34"/>
+    <rect x="316" y="85" width="19" height="28"/><rect x="366" y="64" width="25" height="33"/><rect x="399" y="64" width="22" height="33"/><rect x="458" y="72" width="22" height="31"/><rect x="487" y="72" width="21" height="31"/>
+    <rect x="604" y="80" width="21" height="29"/><rect x="671" y="62" width="24" height="34"/><rect x="703" y="62" width="23" height="34"/><rect x="765" y="67" width="21" height="31"/><rect x="794" y="67" width="21" height="31"/><rect x="915" y="81" width="21" height="29"/>
+  </g>
+  <g fill="#40383a"><path d="M29 180v-42h20v42M174 180v-49h26v49M330 180v-39h21v39M472 180v-46h24v46M615 180v-39h21v39M687 180v-49h26v49M779 180v-43h23v43M925 180v-40h21v40"/></g>
+  <g fill="#384c50"><rect x="90" y="14" width="36" height="16" rx="2"/><rect x="259" y="4" width="38" height="16" rx="2"/><rect x="542" y="9" width="32" height="16" rx="2"/><rect x="845" y="2" width="36" height="16" rx="2"/></g>
+  <g stroke="#7b443d" stroke-width="2" opacity=".65"><path d="M0 117h960M0 142h960M0 165h960"/></g>
 </svg>

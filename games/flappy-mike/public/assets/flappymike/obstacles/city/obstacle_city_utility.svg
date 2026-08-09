@@ -1,14 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="128" height="512" viewBox="0 0 128 512">
-  <defs>
-  <filter id="paper" x="-10%" y="-10%" width="120%" height="120%">
-    <feTurbulence baseFrequency=".7" numOctaves="2" seed="7" type="fractalNoise" result="n"/>
-    <feColorMatrix in="n" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 .045 0"/>
-    <feBlend in="SourceGraphic" mode="multiply"/>
-  </filter></defs>
-  <g filter="url(#paper)">
-  <rect x="5" y="0" width="118" height="512" rx="10" fill="#6d6f69" stroke="#342f2d" stroke-width="8"/>
-  <g stroke="#3e403d" stroke-width="9" fill="none"><path d="M64 12v440M12 95h104M19 95l45 54 45-54"/></g><g fill="#e2ad44" stroke="#3b342e" stroke-width="5"><circle cx="31" cy="185" r="15"/><circle cx="64" cy="185" r="15"/><circle cx="97" cy="185" r="15"/></g><path d="M26 350h76v65H26Z" fill="#db8b44" stroke="#3b342e" stroke-width="6"/>
-  <path d="M3 467h122v45H3Z" fill="#d4a53c" stroke="#342f2d" stroke-width="8"/>
-  <path d="M14 477h100" stroke="#fff4cf" stroke-width="5" opacity=".45"/>
-</g>
+  <!-- Dense scaffold / utility gantry. The braced silhouette keeps a readable collision wall. -->
+  <path d="M11 0h106v512H11z" fill="#5a625f" stroke="#303636" stroke-width="8" stroke-linejoin="round"/>
+  <path d="M8 0h112v29H8zm0 483h112v29H8z" fill="#394544" stroke="#293131" stroke-width="6"/>
+  <path d="M16 11h96M16 501h96" stroke="#f1d277" stroke-width="4"/>
+  <g fill="#71806f" stroke="#303937" stroke-width="7" stroke-linejoin="round">
+    <path d="M23 52h82v82H23zM23 190h82v82H23zM23 328h82v105H23z"/>
+  </g>
+  <g stroke="#35403d" stroke-width="8" fill="none"><path d="M20 52 108 134M108 52 20 134M20 190l88 82M108 190l-88 82M20 328l88 105M108 328 20 433"/><path d="M16 158h96M16 296h96M16 455h96"/></g>
+  <g fill="#d99b3f" stroke="#303937" stroke-width="4"><circle cx="35" cy="158" r="10"/><circle cx="64" cy="158" r="10"/><circle cx="93" cy="158" r="10"/></g>
+  <path d="M26 365h76v35H26z" fill="#b7543e" stroke="#303937" stroke-width="5"/>
+  <path d="M36 382h56" stroke="#f4d383" stroke-width="4"/>
 </svg>

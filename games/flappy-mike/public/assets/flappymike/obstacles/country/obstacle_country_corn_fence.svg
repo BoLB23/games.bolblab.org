@@ -1,14 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="128" height="512" viewBox="0 0 128 512">
-  <defs>
-  <filter id="paper" x="-10%" y="-10%" width="120%" height="120%">
-    <feTurbulence baseFrequency=".7" numOctaves="2" seed="7" type="fractalNoise" result="n"/>
-    <feColorMatrix in="n" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 .045 0"/>
-    <feBlend in="SourceGraphic" mode="multiply"/>
-  </filter></defs>
-  <g filter="url(#paper)">
-  <rect x="5" y="0" width="118" height="512" rx="10" fill="#5e8146" stroke="#342f2d" stroke-width="8"/>
-  <g fill="#567f3e" stroke="#355331" stroke-width="4"><path d="M22 36v405m0-180q-31-38 0-62m0 91q30-37 0-64"/><path d="M43 36v405m0-180q-31-38 0-62m0 91q30-37 0-64"/><path d="M64 36v405m0-180q-31-38 0-62m0 91q30-37 0-64"/><path d="M85 36v405m0-180q-31-38 0-62m0 91q30-37 0-64"/><path d="M106 36v405m0-180q-31-38 0-62m0 91q30-37 0-64"/></g><g stroke="#7a5938" stroke-width="16"><path d="M6 336h116M6 405h116"/><path d="M29 300v165M99 300v165"/></g>
-  <path d="M3 467h122v45H3Z" fill="#a67b43" stroke="#342f2d" stroke-width="8"/>
-  <path d="M14 477h100" stroke="#fff4cf" stroke-width="5" opacity=".45"/>
-</g>
+  <!-- A dense field edge with stout split rails: agricultural, but still a simple danger silhouette. -->
+  <path d="M10 0h108v512H10z" fill="#54763f" stroke="#303b30" stroke-width="8" stroke-linejoin="round"/>
+  <path d="M8 0h112v28H8zm0 484h112v28H8z" fill="#364a31" stroke="#29352b" stroke-width="6"/>
+  <path d="M16 10h96M16 502h96" stroke="#f0d275" stroke-width="4"/>
+  <g fill="#6f9747" stroke="#3d6237" stroke-width="4"><path d="M20 45v387q-22-27 0-54q25-29 0-57q-21-31 0-59q25-29 0-58q-22-29 0-57q25-29 0-57z"/><path d="M43 45v387q-22-27 0-54q25-29 0-57q-21-31 0-59q25-29 0-58q-22-29 0-57q25-29 0-57z"/><path d="M66 45v387q-22-27 0-54q25-29 0-57q-21-31 0-59q25-29 0-58q-22-29 0-57q25-29 0-57z"/><path d="M89 45v387q-22-27 0-54q25-29 0-57q-21-31 0-59q25-29 0-58q-22-29 0-57q25-29 0-57z"/></g>
+  <g stroke="#795638" stroke-width="12" stroke-linecap="round"><path d="M18 338h92M18 408h92"/><path d="M31 307v157M98 307v157"/></g>
+  <path d="M22 455h84" stroke="#c69a4f" stroke-width="8"/>
 </svg>

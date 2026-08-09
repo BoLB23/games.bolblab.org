@@ -16,9 +16,11 @@ COPY packages/game-client-sdk packages/game-client-sdk
 
 ARG VITE_API_BASE_URL=/api/v1
 ARG VITE_CATALOG_URL=/
+ARG VITE_AUTH_MODE=development
 
 RUN npm run build --workspace @bolb23/game-client-sdk \
-    && VITE_API_BASE_URL="$VITE_API_BASE_URL" npm run build --workspace @game-platform/catalog-web \
+    && VITE_API_BASE_URL="$VITE_API_BASE_URL" VITE_AUTH_MODE="$VITE_AUTH_MODE" \
+      npm run build --workspace @game-platform/catalog-web \
     && VITE_API_BASE_URL="$VITE_API_BASE_URL" VITE_CATALOG_URL="$VITE_CATALOG_URL" \
       npm run build --workspace @game-platform/sample-game -- --base=/games/sample-game/ \
     && VITE_API_BASE_URL="$VITE_API_BASE_URL" VITE_CATALOG_URL="$VITE_CATALOG_URL" \

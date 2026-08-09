@@ -2,6 +2,16 @@ import Phaser from 'phaser';
 import { ANIMATION_KEYS } from '../assets/assetManifest';
 import type { GameplayConfig } from '../config/gameplay';
 
+// The atlas is deliberately shown larger than its collision reference. This
+// lets Mike stay legible over richer scenery without changing the flight path
+// or the forgiving hitbox players already know.
+export const PLAYER_VISUAL_SIZE = 80;
+export const PLAYER_COLLISION_REFERENCE_SIZE = 70;
+
+export function getPlayerHitboxSize(config: GameplayConfig): number {
+  return PLAYER_COLLISION_REFERENCE_SIZE * config.playerHitboxScale;
+}
+
 export class PlayerController {
   private isReady = true;
   private isDead = false;
@@ -11,13 +21,11 @@ export class PlayerController {
   private isTumbling = false;
   private readonly baseScaleX: number;
   private readonly baseScaleY: number;
-  private readonly baseDisplayWidth: number;
 
   constructor(private readonly player: Phaser.Physics.Arcade.Sprite, private readonly config: GameplayConfig) {
     this.readyY = player.y;
     this.baseScaleX = player.scaleX;
     this.baseScaleY = player.scaleY;
-    this.baseDisplayWidth = player.displayWidth;
     this.applyConfig();
   }
 
@@ -38,7 +46,7 @@ export class PlayerController {
 
   applyConfig(): void {
     this.player.setMaxVelocity(0, this.config.maxFallVelocity);
-    const hitbox = this.baseDisplayWidth * this.config.playerHitboxScale;
+    const hitbox = getPlayerHitboxSize(this.config);
     this.body.setSize(hitbox, hitbox, true);
   }
 

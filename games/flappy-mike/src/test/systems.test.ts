@@ -4,6 +4,7 @@ import { WorldPhase } from '../config/worldPhases';
 import { DifficultyDirector } from '../systems/DifficultyDirector';
 import { DistanceManager } from '../systems/DistanceManager';
 import { GapPlanner } from '../systems/GapPlanner';
+import { getPlayerHitboxSize, PLAYER_COLLISION_REFERENCE_SIZE, PLAYER_VISUAL_SIZE } from '../systems/PlayerController';
 import { ThemeDirector } from '../systems/ThemeDirector';
 
 describe('FlappyMike gameplay systems', () => {
@@ -48,5 +49,44 @@ describe('FlappyMike gameplay systems', () => {
     expect(city.city).toBeGreaterThan(city.country);
     expect(country.country).toBeGreaterThan(country.city);
     expect(DEFAULT_GAMEPLAY_CONFIG.gravity).toBe(1200);
+  });
+
+  it('stages the visual journey by depth instead of fading every layer together', () => {
+    const director = new ThemeDirector();
+    const transitionStart = 13_200;
+    const transitionLength = 9_200;
+    const at = (progress: number) => director.getVisualBlend(transitionStart + transitionLength * progress);
+
+    const early = at(0.2);
+    expect(early.far).toBeGreaterThan(early.near);
+    expect(early.near).toBeLessThan(0.05);
+
+    const outskirts = at(0.5);
+    expect(outskirts.far).toBeGreaterThan(outskirts.mid);
+    expect(outskirts.mid).toBeGreaterThan(outskirts.near);
+    expect(outskirts.ground).toBeLessThan(0.03);
+
+    const firstFarm = at(0.75);
+    expect(firstFarm.near).toBeGreaterThan(0);
+    expect(firstFarm.ground).toBeGreaterThan(0);
+    expect(firstFarm.far).toBeGreaterThan(firstFarm.ground);
+  });
+
+  it('keeps Mike’s original collision size while increasing only his display size', () => {
+    const config = createRuntimeGameplayConfig();
+    expect(PLAYER_VISUAL_SIZE).toBeGreaterThan(PLAYER_COLLISION_REFERENCE_SIZE);
+    expect(getPlayerHitboxSize(config)).toBe(70 * config.playerHitboxScale);
+  });
+
+  it('brings in obstacle families as a physical city-to-country journey', () => {
+    const director = new ThemeDirector();
+    const at = (progress: number) => director.getObstacleWeights(13_200 + 9_200 * progress);
+    const outerNeighborhoods = at(0.2);
+    const edgeOfTown = at(0.62);
+    const firstFarm = at(0.8);
+
+    expect(outerNeighborhoods.city).toBeGreaterThan(outerNeighborhoods.country);
+    expect(edgeOfTown.transition).toBeGreaterThan(edgeOfTown.city);
+    expect(firstFarm.country).toBeGreaterThan(firstFarm.transition);
   });
 });

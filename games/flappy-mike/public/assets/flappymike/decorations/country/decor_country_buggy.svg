@@ -1,9 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="190" height="105" viewBox="0 0 190 105">
-  <defs>
-  <filter id="paper" x="-10%" y="-10%" width="120%" height="120%">
-    <feTurbulence baseFrequency=".7" numOctaves="2" seed="7" type="fractalNoise" result="n"/>
-    <feColorMatrix in="n" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 .045 0"/>
-    <feBlend in="SourceGraphic" mode="multiply"/>
-  </filter></defs>
-  <g filter="url(#paper)"><g stroke="#392f27" stroke-width="6" fill="none"><circle cx="68" cy="78" r="24"/><circle cx="135" cy="78" r="24"/><path d="M26 72h131M93 69V27h50l22 42M20 69 5 45"/></g><path d="M73 31h65l19 39H66Z" fill="#493d32" stroke="#292522" stroke-width="6"/><path d="M5 45q16-19 34 0v25H12" fill="#654831" stroke="#292522" stroke-width="5"/></g>
+  <!-- A small horse-and-buggy silhouette on the distant Lancaster road. -->
+  <path d="M8 96h174" stroke="#82955d" stroke-width="7" stroke-linecap="round"/>
+  <g fill="none" stroke="#3a342d" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"><circle cx="78" cy="77" r="20"/><circle cx="137" cy="77" r="20"/><path d="M54 70h101M99 70V31h43l18 39M94 47H63M62 47 42 67"/></g>
+  <path d="M77 35h63l20 35H72z" fill="#514337" stroke="#302d28" stroke-width="6" stroke-linejoin="round"/>
+  <path d="M15 46q11-19 28-8l16 21-10 16H20z" fill="#70523a" stroke="#302d28" stroke-width="5" stroke-linejoin="round"/>
+  <path d="M27 44 16 29m18 16 15-13" fill="none" stroke="#302d28" stroke-width="4" stroke-linecap="round"/>
+  <path d="M107 43h28" stroke="#e0c87c" stroke-width="4"/>
 </svg>

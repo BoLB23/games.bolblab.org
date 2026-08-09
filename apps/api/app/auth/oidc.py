@@ -12,12 +12,13 @@ from authlib.jose import jwt
 from authlib.jose.errors import JoseError
 from cryptography.fernet import Fernet, InvalidToken
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings
 from app.models.auth import OidcLoginTransaction
 from app.models.common import utc_now
-from app.models.user import ExternalIdentity, User
+from app.models.user import ClanRole, ExternalIdentity, User
 
 _TIMEOUT = httpx.Timeout(10.0, connect=5.0)
 _GOOGLE_ISSUER = "https://accounts.google.com"
@@ -25,6 +26,16 @@ _GOOGLE_ISSUER = "https://accounts.google.com"
 
 class OidcError(Exception):
     """An expected OIDC failure that must not disclose provider details to the browser."""
+
+
+def _normalized_email(value: object) -> str | None:
+    """Normalize an email only for matching the configured bootstrap account."""
+    if not isinstance(value, str):
+        return None
+    normalized = value.strip().casefold()
+    if not normalized or len(normalized) > 320 or any(character.isspace() or ord(character) < 32 for character in normalized):
+        return None
+    return normalized
 
 
 def _digest(value: str) -> str:
@@ -158,18 +169,54 @@ def complete_login(session: Session, settings: Settings, code: str, state: str) 
     subject = str(claims["sub"])
     identity = session.scalar(select(ExternalIdentity).where(ExternalIdentity.issuer == settings.oidc_issuer, ExternalIdentity.subject == subject))
     email = claims.get("email") if isinstance(claims.get("email"), str) else None
+    email_verified = claims.get("email_verified") if isinstance(claims.get("email_verified"), bool) else None
     display_name = claims.get("name") if isinstance(claims.get("name"), str) else None
     avatar_url = claims.get("picture") if isinstance(claims.get("picture"), str) else None
     if identity is None:
-        user = User(display_name=(display_name or email or "Google user")[:100], email=email, avatar_url=avatar_url)
-        session.add(user)
-        session.flush()
-        identity = ExternalIdentity(user_id=user.id, issuer=settings.oidc_issuer, subject=subject, email_at_login=email)
-        session.add(identity)
-    else:
-        user = identity.user
-        user.display_name = (display_name or email or user.display_name)[:100]
-        user.email, user.avatar_url, identity.email_at_login = email, avatar_url, email
+        # A concurrent first login can lose the unique (issuer, subject) race.
+        # Keep the user and identity insert in a savepoint so the losing user
+        # row is discarded, then resolve the winner by the durable identity.
+        try:
+            with session.begin_nested():
+                user = User(
+                    display_name=(display_name or email or "Google user")[:100],
+                    email=email,
+                    email_verified=email_verified,
+                    avatar_url=avatar_url,
+                    role=ClanRole.PEON.value,
+                )
+                session.add(user)
+                session.flush()
+                identity = ExternalIdentity(
+                    user_id=user.id, issuer=settings.oidc_issuer, subject=subject, email_at_login=email
+                )
+                session.add(identity)
+                session.flush()
+        except IntegrityError as exc:
+            identity = session.scalar(
+                select(ExternalIdentity).where(
+                    ExternalIdentity.issuer == settings.oidc_issuer,
+                    ExternalIdentity.subject == subject,
+                )
+            )
+            if identity is None:
+                raise OidcError("Could not create Google identity") from exc
+        assert identity is not None
+    user = identity.user
+    user.display_name = (display_name or email or user.display_name)[:100]
+    user.email, user.email_verified, user.avatar_url, identity.email_at_login = (
+        email,
+        email_verified,
+        avatar_url,
+        email,
+    )
+    if (
+        settings.overlord_email is not None
+        and email_verified is True
+        and _normalized_email(email) == settings.overlord_email
+    ):
+        user.role = ClanRole.OVERLORD.value
+        user.is_admin = True
     if not user.is_active:
         session.rollback()
         raise OidcError("Account is disabled")

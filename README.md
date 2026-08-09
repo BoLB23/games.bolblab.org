@@ -31,7 +31,7 @@ npm run dev
 
 Local testing keeps the seeded player picker with `AUTH_MODE=development` and `VITE_AUTH_MODE=development`. Google login is enabled only when **both** values are `oidc`. Configure a Google OAuth **Web application** client with the exact redirect URI `OIDC_CALLBACK_URL` (normally `https://<catalog-host>/api/v1/auth/callback`) and add these server-side values to the deployment secret: `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, and `OIDC_TRANSACTION_SECRET`. Set `OIDC_ISSUER=https://accounts.google.com`.
 
-The API owns the authorization-code exchange and validates Google ID tokens; browser JavaScript receives only the platform’s HTTP-only session cookie. In production, configuration fails closed unless OIDC is selected, all OIDC values are present, the catalog/redirect use HTTPS, secure cookies are enabled, and the cookie name starts with `__Host-`.
+The API owns the authorization-code exchange and validates Google ID tokens; browser JavaScript receives only the platform’s HTTP-only session cookie. Any Google account can create a local player on first sign-in. New accounts start as `peon`; optionally set `OVERLORD_EMAIL` to bootstrap one verified Google email as `overlord`. In production, configuration fails closed unless OIDC is selected, all OIDC values are present, the catalog/redirect use HTTPS, secure cookies are enabled, and the cookie name starts with `__Host-`.
 
 ## Commands
 
@@ -96,16 +96,65 @@ scripts/deploy --tag <image-tag>
 
 Use `--context <kubectl-context>` when needed. Use `--image-repo <repository>`
 only when overriding the default `ghcr.io/bolb23/games.bolblab.org` image base.
-The app is served at `http://games.int.bolblab.org`. If the existing
-`games-int-bolblab-org-tls` secret is present, the deploy script uses it;
+The app is served at `http://games.bolblab.org`. If the existing
+`games-bolblab-org-tls` secret is present, the deploy script uses it;
 otherwise it leaves the ingress HTTP-only.
 
 The API currently keeps SQLite data in a 1 GiB `games-data` PVC and runs its
 migrations plus idempotent seed step before startup. This is suitable for the
 small internal deployment only; move to PostgreSQL before increasing replicas.
 
+### Production Google OIDC overlay
+
+The default manifests remain an internal HTTP/development deployment, so they
+continue to use the seeded player picker. Do not turn that deployment into OIDC
+by changing individual environment values: secure `__Host-` cookies require
+HTTPS. Instead, use the explicit [`k8s/overlays/google-oidc`](k8s/overlays/google-oidc)
+overlay after TLS is working.
+
+1. Register a Google OAuth Web application. Its authorized redirect URI must be
+   exactly `https://<catalog-host>/api/v1/auth/callback`.
+2. The OIDC overlay is already configured for the canonical public HTTPS
+   catalog host, `https://games.bolblab.org`.
+3. Create `games-secrets` from
+   [`k8s/secret.example.yaml`](k8s/secret.example.yaml), supplying
+   `SESSION_SECRET`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`,
+   `OIDC_CALLBACK_URL`, `OIDC_TRANSACTION_SECRET`, and `OVERLORD_EMAIL`. Set
+   `OVERLORD_EMAIL` to the verified Google address for the intended
+   administrator; this repository deliberately supplies only a placeholder. Do
+   not commit the resulting Secret or its values. `OIDC_CALLBACK_URL` must use
+   the same host as the ConfigMap and the Google client registration.
+4. Provide the `games-bolblab-org-tls` ingress TLS secret (for
+   `games.bolblab.org`; the exact secret name is intentional) and use a host
+   that matches the ingress). Build and publish a web image with its build-time
+   mode set to OIDC; Vite variables cannot be changed after the static image is
+   built:
+
+   ```bash
+   docker build -f docker/web.Dockerfile --build-arg VITE_AUTH_MODE=oidc \
+     -t ghcr.io/bolb23/games.bolblab.org/web:<oidc-tag> .
+   ```
+
+   Publish API and web images with the same `<oidc-tag>`, then deploy them with:
+
+   ```bash
+   scripts/deploy --oidc --tag <oidc-tag>
+   ```
+
+`--oidc` refuses to deploy while the TLS secret is absent and applies the OIDC
+overlay. The overlay sets `APP_ENV=production`, `AUTH_MODE=oidc`,
+`SESSION_COOKIE_NAME=__Host-game_platform_session`,
+`SESSION_COOKIE_SECURE=true`, the HTTPS catalog origin, Google issuer, callback
+and client secret references, transaction secret, and `OVERLORD_EMAIL`. Its init
+container runs migrations only: it does not seed the deterministic development
+players into the production OIDC database.
+
+For the exact Google client registration, secret-helper, DNS/TLS, image build,
+and rollout sequence for the public `https://games.bolblab.org` host, see
+[`docs/GOOGLE_OIDC_DEPLOYMENT.md`](docs/GOOGLE_OIDC_DEPLOYMENT.md).
+
 ## Current limitations
 
-Catalog routes are private and require the development session. This development login is not production authentication: it has no passwords, public registration, social login, or OIDC implementation. Session time is intentionally approximate and capped between heartbeats; leaderboards are not an anti-cheat system. Cloud saves, achievements, multiplayer, and Milton Estates integration remain future work. The platform uses polling/heartbeats instead of WebSockets or Redis by design; see [`docs/decisions/007-heartbeats-over-realtime.md`](docs/decisions/007-heartbeats-over-realtime.md).
+Catalog routes are private. The default internal deployment uses the development picker; the production Google OIDC path is available only through its TLS-required overlay. The development login is not production authentication and its deterministic users are test fixtures, not accounts to seed in an OIDC environment. Session time is intentionally approximate and capped between heartbeats; leaderboards are not an anti-cheat system. Cloud saves, achievements, multiplayer, and Milton Estates integration remain future work. The platform uses polling/heartbeats instead of WebSockets or Redis by design; see [`docs/decisions/007-heartbeats-over-realtime.md`](docs/decisions/007-heartbeats-over-realtime.md).
 
 Read `docs/HANDOFF.md` before continuing implementation.

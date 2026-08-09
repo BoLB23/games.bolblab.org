@@ -1,13 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="960" height="180" viewBox="0 0 960 180">
-  <defs>
-  <filter id="paper" x="-10%" y="-10%" width="120%" height="120%">
-    <feTurbulence baseFrequency=".7" numOctaves="2" seed="7" type="fractalNoise" result="n"/>
-    <feColorMatrix in="n" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 .045 0"/>
-    <feBlend in="SourceGraphic" mode="multiply"/>
-  </filter></defs>
-  <g filter="url(#paper)">
-  <path d="M0 180V91h180V58h176v122h88V103h188V72h184v108h124Z" fill="#8b7765" stroke="#554d47" stroke-width="6"/>
-  <g fill="#d9c79c"><rect x="35" y="112" width="68" height="36"/><rect x="227" y="94" width="82" height="42"/><rect x="493" y="121" width="74" height="32"/><rect x="682" y="102" width="96" height="43"/></g>
-  <g fill="#55734f"><circle cx="396" cy="130" r="44"/><circle cx="849" cy="126" r="54"/><circle cx="912" cy="137" r="37"/></g>
-</g>
+  <!-- A deliberately mixed edge-of-town layer: detached homes, small warehouses, mown grass, and the first field. -->
+  <path d="M0 180V100q88-27 176 1t167-4q86-29 169 4t158-5q91-31 176 3t114 1v80Z" fill="#78995c"/>
+  <path d="M0 180v-44q110-29 218 3t210-3q103-28 207 2t204-3q61-17 121 1v44Z" fill="#669148"/>
+  <g stroke="#554b42" stroke-width="4" stroke-linejoin="round"><path d="M38 150V95h60V73h51v77Z" fill="#a56b52"/><path d="M29 96h78l-13-16H42z" fill="#d2b679"/><path d="M218 154v-52h98v52Z" fill="#817967"/><path d="M208 103h118l-12-14h-94z" fill="#a99471"/><path d="M489 153V82h63v71Z" fill="#b36a50"/><path d="M479 83h83l-13-16h-56z" fill="#d0b375"/><path d="M715 155v-45h76v45Z" fill="#877d67"/><path d="M704 111h98l-11-14h-74z" fill="#ad9875"/></g>
+  <g fill="#f0d182" stroke="#60483d" stroke-width="3"><rect x="57" y="111" width="16" height="18"/><rect x="111" y="108" width="16" height="21"/><rect x="508" y="103" width="17" height="21"/></g>
+  <g fill="#4d7948"><path d="M340 157q14-58 29 0 16-74 33 0 15-52 28 0zM590 157q15-67 31 0 17-55 31 0 15-72 33 0zM850 157q14-62 30 0 14-52 29 0 16-66 32 0z"/></g>
+  <g stroke="#e2d09a" stroke-width="3" opacity=".7"><path d="M-8 180 82 130M62 180l91-50M132 180l92-50M595 180l89-46M665 180l89-46M735 180l89-46"/></g>
 </svg>

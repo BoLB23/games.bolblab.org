@@ -1,15 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="960" height="180" viewBox="0 0 960 180">
-  <defs>
-  <filter id="paper" x="-10%" y="-10%" width="120%" height="120%">
-    <feTurbulence baseFrequency=".7" numOctaves="2" seed="7" type="fractalNoise" result="n"/>
-    <feColorMatrix in="n" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 .045 0"/>
-    <feBlend in="SourceGraphic" mode="multiply"/>
-  </filter></defs>
-  <g filter="url(#paper)">
-  <path d="M0 180V101Q130 71 260 108T520 97T780 112T960 91V180Z" fill="#79a759"/>
-  <path d="M0 180v-35q122-42 245 0t245 0t245 0t225 0v35Z" fill="#5f9149"/>
-  <g stroke="#416d3f" stroke-width="3" opacity=".55"><path d="M-40 180l85-73"/><path d="M38 180l85-73"/><path d="M116 180l85-73"/><path d="M194 180l85-73"/><path d="M272 180l85-73"/><path d="M350 180l85-73"/><path d="M428 180l85-73"/><path d="M506 180l85-73"/><path d="M584 180l85-73"/><path d="M662 180l85-73"/><path d="M740 180l85-73"/><path d="M818 180l85-73"/><path d="M896 180l85-73"/><path d="M974 180l85-73"/></g>
-  <g transform="translate(96 73)"><path d="M0 35 52 0l55 35v70H0Z" fill="#a54036" stroke="#5a3832" stroke-width="5"/><path d="M42 105V56h28v49" fill="#f4d6a2"/><rect x="122" y="26" width="29" height="79" rx="12" fill="#c6c3b1" stroke="#5c6765" stroke-width="5"/></g>
-  <g transform="translate(626 101)" fill="#f3eee0" stroke="#313b3b" stroke-width="4"><ellipse cx="27" cy="30" rx="26" ry="16"/><circle cx="55" cy="25" r="11"/><path d="M13 43v22m24-22v22"/></g>
-</g>
+  <defs><pattern id="cropRows" width="80" height="180" patternUnits="userSpaceOnUse"><path d="M-40 180 120 60" fill="none" stroke="#49763e" stroke-width="3" opacity=".62"/></pattern></defs>
+  <!-- Lancaster landmarks sit in the midground: a red bank barn, silo, farmhouse and neat crop geometry. -->
+  <path d="M0 180V97q111-31 213 3t199-2q109-38 218 4t174-9q84-31 156 4v83Z" fill="#86ad5d"/>
+  <path d="M0 180v-45q106-35 207 3t203-1q95-34 192 1t180-3q87-31 178 0v45Z" fill="#6f9c4c"/>
+  <rect y="112" width="960" height="68" fill="url(#cropRows)"/>
+  <g transform="translate(116 52)" stroke="#643f35" stroke-width="4" stroke-linejoin="round"><path d="M0 99V35L49 3l57 32v64Z" fill="#a84638"/><path d="M-3 36 49 2l60 34" fill="none" stroke="#f0ca85" stroke-width="9"/><path d="M37 99V55h27v44" fill="#f0d7a4"/><path d="M11 52h18v18H11zM74 52h18v18H74z" fill="#f4d779"/><path d="M116 99V26q0-17 14-17t14 17v73Z" fill="#d7d4bf"/><path d="M119 27h22" stroke="#84948c" stroke-width="5"/></g>
+  <g transform="translate(488 91)" fill="#f1eee0" stroke="#4a5147" stroke-width="3"><ellipse cx="31" cy="30" rx="29" ry="16"/><circle cx="59" cy="23" r="11"/><path d="M12 42v22m27-22v22M57 33l10 8" fill="none" stroke-width="4"/><path d="M20 18q9 8 15 0M38 39q8 8 14 0" fill="none" stroke="#333b39" stroke-width="7"/></g>
+  <g transform="translate(735 91)" stroke="#4a5c42" stroke-width="3"><path d="M0 48q24-51 50 0" fill="#5d864c"/><path d="M22 48V18"/><path d="M3 37h41"/><circle cx="22" cy="15" r="7" fill="#d9ad53"/></g>
+  <path d="M0 173h960" stroke="#4d783e" stroke-width="8" opacity=".55"/>
 </svg>

@@ -1,14 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="128" height="512" viewBox="0 0 128 512">
-  <defs>
-  <filter id="paper" x="-10%" y="-10%" width="120%" height="120%">
-    <feTurbulence baseFrequency=".7" numOctaves="2" seed="7" type="fractalNoise" result="n"/>
-    <feColorMatrix in="n" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 .045 0"/>
-    <feBlend in="SourceGraphic" mode="multiply"/>
-  </filter></defs>
-  <g filter="url(#paper)">
-  <rect x="5" y="0" width="118" height="512" rx="10" fill="#899790" stroke="#342f2d" stroke-width="8"/>
-  <rect x="25" y="58" width="78" height="314" rx="37" fill="#c6c9ba" stroke="#4a5551" stroke-width="7"/><path d="M25 96q39-75 78 0" fill="#9ea9a5" stroke="#4a5551" stroke-width="7"/><g fill="#d6aa4a" stroke="#74562f" stroke-width="6"><rect x="14" y="360" width="100" height="56" rx="9"/><rect x="24" y="416" width="80" height="43" rx="8"/></g>
-  <path d="M3 467h122v45H3Z" fill="#d5ad50" stroke="#342f2d" stroke-width="8"/>
-  <path d="M14 477h100" stroke="#fff4cf" stroke-width="5" opacity=".45"/>
-</g>
+  <!-- Grain silo with a hay-bale apron. A hard rim at both ends keeps the gap unmistakable. -->
+  <path d="M12 0h104v512H12z" fill="#76837b" stroke="#35403c" stroke-width="8" stroke-linejoin="round"/>
+  <path d="M8 0h112v28H8zm0 484h112v28H8z" fill="#3c4943" stroke="#2f3934" stroke-width="6"/>
+  <path d="M16 10h96M16 502h96" stroke="#f2d77d" stroke-width="4"/>
+  <path d="M25 54q39-53 78 0v324H25z" fill="#c2c9b8" stroke="#4a5951" stroke-width="7"/>
+  <g stroke="#85968c" stroke-width="5"><path d="M34 86v268M51 65v289M77 65v289M94 86v268"/></g>
+  <path d="M19 365h90v52H19zM27 417h74v48H27z" fill="#d7a94b" stroke="#725536" stroke-width="6"/>
+  <g stroke="#b98035" stroke-width="4"><path d="M26 381h76M26 399h76M34 433h60M34 451h60"/></g>
 </svg>

@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.models.common import utc_now
 from app.models.player import PlayerProfile
 from app.models.user import User
 
@@ -82,6 +83,10 @@ def update_player(session: Session, user: User, values: dict[str, str | None]) -
         else:
             value = validate_player_option(field, value)
         setattr(profile, field, value)
+    # Reading /me/player may provision a default profile for compatibility;
+    # setup is complete only after the player explicitly saves it.
+    if user.player_setup_completed_at is None:
+        user.player_setup_completed_at = utc_now()
     session.commit()
     session.refresh(profile)
     return profile

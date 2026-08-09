@@ -1,13 +1,21 @@
 #!/usr/bin/env node
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', 'public', 'assets', 'flappymike');
+const force = process.argv.includes('--force');
+let written = 0;
+let preserved = 0;
 const write = (path, body) => {
   const target = join(root, path);
+  if (!force && existsSync(target)) {
+    preserved += 1;
+    return;
+  }
   mkdirSync(dirname(target), { recursive: true });
   writeFileSync(target, body.trimStart());
+  written += 1;
 };
 
 const texture = `
@@ -147,4 +155,4 @@ write('effects/fx_feather_02.svg', transparent(28, 44, `<path d="M4 12Q17 1 24 6
 write('effects/fx_impact_star.svg', transparent(64, 64, `<path d="m32 2 8 19 20-7-10 18 12 15-21-2-9 17-8-18-21 6 11-19L2 16l21 2Z" fill="#ffd451" stroke="#7d482f" stroke-width="4"/>`));
 write('ui/logo_flappymike.svg', transparent(520, 160, `<path d="M30 111q18-86 62-36q37-67 68 0q36-61 67 2q36-57 72 1q35-49 70 0q38-50 78 5q28-25 45 29" fill="none" stroke="#56372c" stroke-width="38" stroke-linecap="round" stroke-linejoin="round"/><text x="260" y="116" text-anchor="middle" font-family="Arial Black,Arial,sans-serif" font-size="82" font-style="italic" fill="#ffd06a" stroke="#56372c" stroke-width="5" paint-order="stroke">FlappyMike</text><g transform="translate(423 18)" fill="none" stroke="#292626" stroke-width="8"><circle cx="20" cy="20" r="16"/><circle cx="59" cy="20" r="16"/><path d="M36 20h7M4 18-9 13m84 5 13-5"/><path d="M17 45q10-15 20 0q10-15 20 0"/></g>`));
 
-console.log(`Generated illustrated fallback art in ${root}`);
+console.log(`Fallback art: wrote ${written}, preserved ${preserved} authored files in ${root}${force ? ' (--force)' : ''}`);

@@ -39,6 +39,7 @@ def _upsert_development_user(
         user.is_admin = role == ClanRole.OVERLORD
         user.is_active = True
         user.last_seen_at = timestamp
+        user.player_setup_completed_at = utc_now()
         return user
     user = User(
         display_name=display_name,
@@ -47,6 +48,7 @@ def _upsert_development_user(
         role=role.value,
         is_active=True,
         last_seen_at=timestamp,
+        player_setup_completed_at=utc_now(),
     )
     session.add(user)
     session.flush()
@@ -317,13 +319,13 @@ def seed_database(
         session,
         "flappy-mike",
         title="FlappyMike",
-        short_description="A one-button flight from Philadelphia to Lancaster country.",
+        short_description="Mike is stuck in Philadelphia—help him escape to his new home in Lancaster County.",
         description=(
-            "Guide the bespectacled, mustachioed FlappyMike through a continuous, procedural run. "
-            "The skyline slowly gives way to the outskirts and then Lancaster-style countryside—"
+            "Mike has been stuck in Philadelphia for far too long. Guide the bespectacled, mustachioed FlappyMike "
+            "through the city, escape toward the outskirts, and help him reach his new home in Lancaster County—"
             "with your farthest distance saved on the crew leaderboard."
         ),
-        cover_image_url=None,
+        cover_image_url="/assets/flappy-mike-cover.png",
         launch_url=flappy_mike_origin,
         status="playable",
         version="0.1.0",
@@ -339,17 +341,10 @@ def seed_database(
         session,
         "milton-estates",
         title="Milton Estates",
-        short_description=(
-            "An independently hosted game connected to the Game Lab platform."
-            if milton_estates_enabled
-            else "A future addition to the collection."
-        ),
+        short_description="Welcome to Milton Estates! Meet your new friends and see what quests are in store.",
         description=(
-            "Milton Estates remains independently deployed; this catalog entry enables platform identity and "
-            "play-session integration without changing its existing local saves."
-            if milton_estates_enabled
-            else "Milton Estates is planned for a future integration. Its existing project and local saves remain "
-            "untouched while this catalog foundation is established."
+            "Welcome to Milton Estates! Meet your new friends, settle into the neighborhood, and see what quests "
+            "are in store."
         ),
         cover_image_url="/assets/milton-estates-cover.png",
         launch_url=milton_estates_origin if milton_estates_enabled else "",

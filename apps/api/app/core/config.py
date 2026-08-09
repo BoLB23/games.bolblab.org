@@ -29,6 +29,10 @@ class Settings(BaseSettings):
     oidc_callback_url: str | None = None
     oidc_transaction_secret: str | None = None
     oidc_transaction_ttl_seconds: int = Field(default=600, ge=60, le=3600)
+    # A single, optional bootstrap administrator.  This is deliberately an
+    # email rather than an allowlist: Google identities are always linked by
+    # issuer + subject, and this value only controls the initial clan role.
+    overlord_email: str | None = None
     catalog_origin: str = "http://localhost:6183"
     sample_game_origin: str = "http://localhost:6184"
     sample_game_launch_url: str | None = None
@@ -51,6 +55,30 @@ class Settings(BaseSettings):
         if not value.startswith(("sqlite://", "postgresql://", "postgresql+")):
             raise ValueError("DATABASE_URL must use SQLite or PostgreSQL")
         return value
+
+    @field_validator("overlord_email")
+    @classmethod
+    def normalize_overlord_email(cls, value: str | None) -> str | None:
+        """Return a comparison-safe email or disable the bootstrap rule.
+
+        Google treats account email addresses case-insensitively.  We retain
+        the provider's original claim in the database, but casefold the
+        configured value and the claim only for this equality check.
+        """
+        if value is None:
+            return None
+        normalized = value.strip().casefold()
+        if not normalized:
+            return None
+        if (
+            len(normalized) > 320
+            or normalized.count("@") != 1
+            or normalized.startswith("@")
+            or normalized.endswith("@")
+            or any(character.isspace() or ord(character) < 32 for character in normalized)
+        ):
+            raise ValueError("OVERLORD_EMAIL must be a single email address")
+        return normalized
 
     @field_validator("catalog_origin", "sample_game_origin", "flappy_mike_origin")
     @classmethod

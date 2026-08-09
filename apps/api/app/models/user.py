@@ -38,16 +38,20 @@ class User(Base):
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
     display_name: Mapped[str] = mapped_column(String(100), nullable=False)
     email: Mapped[str | None] = mapped_column(String(320), nullable=True)
+    email_verified: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     avatar_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     is_admin: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    role: Mapped[str] = mapped_column(String(32), nullable=False, default=ClanRole.MEMBER.value)
+    role: Mapped[str] = mapped_column(
+        String(32), nullable=False, default=ClanRole.PEON.value, server_default=ClanRole.PEON.value
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=utc_now, onupdate=utc_now
     )
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
+    player_setup_completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     external_identities: Mapped[list[ExternalIdentity]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
@@ -63,6 +67,11 @@ class User(Base):
     leaderboard_entries: Mapped[list[LeaderboardEntry]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
+
+    @property
+    def needs_player_setup(self) -> bool:
+        """Whether this user has saved their player customization at least once."""
+        return self.player_setup_completed_at is None
 
 
 class ExternalIdentity(Base):

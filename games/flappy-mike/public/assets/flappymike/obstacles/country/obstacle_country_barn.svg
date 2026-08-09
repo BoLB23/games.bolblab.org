@@ -1,14 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="128" height="512" viewBox="0 0 128 512">
-  <defs>
-  <filter id="paper" x="-10%" y="-10%" width="120%" height="120%">
-    <feTurbulence baseFrequency=".7" numOctaves="2" seed="7" type="fractalNoise" result="n"/>
-    <feColorMatrix in="n" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 .045 0"/>
-    <feBlend in="SourceGraphic" mode="multiply"/>
-  </filter></defs>
-  <g filter="url(#paper)">
-  <rect x="5" y="0" width="118" height="512" rx="10" fill="#a94539" stroke="#342f2d" stroke-width="8"/>
-  <path d="M12 126 64 53l52 73v320H12Z" fill="#a94539" stroke="#4a3430" stroke-width="7"/><path d="M28 445V244h72v201" fill="#d9c69d" stroke="#4a3430" stroke-width="7"/><path d="m31 250 66 185m0-185L31 435" stroke="#a94539" stroke-width="9"/>
-  <path d="M3 467h122v45H3Z" fill="#e1c07a" stroke="#342f2d" stroke-width="8"/>
-  <path d="M14 477h100" stroke="#fff4cf" stroke-width="5" opacity=".45"/>
-</g>
+  <!-- A red Pennsylvania bank-barn wall; beams and doors make the column feel built, not tiled. -->
+  <path d="M10 0h108v512H10z" fill="#a9473c" stroke="#393532" stroke-width="8" stroke-linejoin="round"/>
+  <path d="M8 0h112v29H8zm0 483h112v29H8z" fill="#593b33" stroke="#34312d" stroke-width="6"/>
+  <path d="M17 11h94M17 501h94" stroke="#f4d780" stroke-width="4"/>
+  <g stroke="#693b34" stroke-width="4" opacity=".8"><path d="M15 54h98M15 81h98M15 108h98M15 135h98M15 162h98M15 189h98M15 216h98M15 243h98M15 270h98M15 297h98M15 324h98M15 351h98M15 378h98M15 405h98M15 432h98"/></g>
+  <path d="M19 62 64 29l45 33v122H19z" fill="#bf5844" stroke="#4b3730" stroke-width="6"/>
+  <path d="M27 202h74v240H27z" fill="#e2c585" stroke="#4c4031" stroke-width="7"/>
+  <path d="M29 204 99 438M99 204 29 438" stroke="#a94c3c" stroke-width="9"/>
+  <path d="M54 93h20v45H54z" fill="#374039" stroke="#4b3730" stroke-width="5"/>
+  <path d="M23 458h82" stroke="#9f743b" stroke-width="10"/>
 </svg>

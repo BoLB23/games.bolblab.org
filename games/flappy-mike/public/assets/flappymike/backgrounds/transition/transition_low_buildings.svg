@@ -1,13 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="960" height="230" viewBox="0 0 960 230">
-  <defs>
-  <filter id="paper" x="-10%" y="-10%" width="120%" height="120%">
-    <feTurbulence baseFrequency=".7" numOctaves="2" seed="7" type="fractalNoise" result="n"/>
-    <feColorMatrix in="n" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 .045 0"/>
-    <feBlend in="SourceGraphic" mode="multiply"/>
-  </filter></defs>
-  <g filter="url(#paper)">
-  <path d="M0 230V171h105v-40h132v40h76v-64h150v64h89v-33h118v33h77v-55h132v55h81v59Z" fill="#71828a"/>
-  <path d="M0 230v-33c85-44 161-20 238-7 98 17 155-30 252-12 90 17 144 3 220-15 94-23 169-3 250 21v46Z" fill="#75926f"/>
-  <g stroke="#4b4a43" stroke-width="6"><path d="M170 120v91m-35-68h70M666 109v102m-37-66h74"/></g>
-</g>
+  <!-- Outer neighborhoods: the city has receded, but industrial roofs and utility infrastructure remain. -->
+  <path d="M0 230V165h53v-28h52v28h42v-51h86v51h47v-31h77v31h56v-67h97v67h49v-40h73v40h57v-55h92v55h45v-25h75v25h59v65Z" fill="#75848a"/>
+  <g fill="#91a09a" opacity=".8"><path d="M0 230v-48h105v48M155 230v-64h82v64M337 230v-53h93v53M509 230v-42h73v42M705 230v-55h92v55M877 230v-48h83v48"/></g>
+  <g fill="#58656b"><path d="M25 137h50l-9-16H34z"/><ellipse cx="50" cy="120" rx="20" ry="7"/><path d="M725 110h51l-9-17h-32z"/><ellipse cx="750" cy="93" rx="21" ry="7"/></g>
+  <path d="M0 230v-58q85-43 162-15t147-11q87-38 173 1t152-4q92-34 166 2t160 27v58Z" fill="#86a473"/>
+  <g stroke="#4a5049" stroke-width="5" fill="none"><path d="M120 78v136M84 103h72M602 68v146M565 95h74M886 92v122M851 116h67"/><path d="M120 91 602 82 886 105" stroke-width="2"/></g>
+  <g fill="#d2c979" opacity=".7"><rect x="168" y="142" width="31" height="8"/><rect x="302" y="152" width="34" height="8"/><rect x="440" y="130" width="39" height="8"/><rect x="760" y="143" width="36" height="8"/></g>
 </svg>

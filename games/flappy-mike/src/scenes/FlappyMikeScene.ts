@@ -11,11 +11,13 @@ import { DistanceManager } from '../systems/DistanceManager';
 import { EffectsDirector } from '../systems/EffectsDirector';
 import { ObstacleManager } from '../systems/ObstacleManager';
 import { PlatformBridge } from '../systems/PlatformBridge';
-import { PlayerController } from '../systems/PlayerController';
+import { PLAYER_VISUAL_SIZE, PlayerController } from '../systems/PlayerController';
 import { ThemeDirector } from '../systems/ThemeDirector';
 import { TuningPanel } from '../systems/TuningPanel';
 
-type RunState = 'READY' | 'PLAYING' | 'DEAD' | 'GAME_OVER';
+type RunState = 'READY' | 'PLAYING' | 'DEAD' | 'GAME_OVER' | 'LEADERBOARD';
+
+const INTRO_SEEN_STORAGE_KEY = 'game-platform/flappy-mike/intro-seen';
 
 export class FlappyMikeScene extends Phaser.Scene {
   private readonly runtimeConfig: GameplayConfig = createRuntimeGameplayConfig();
@@ -32,9 +34,23 @@ export class FlappyMikeScene extends Phaser.Scene {
   private audio!: AudioDirector;
   private platform = new PlatformBridge();
   private scoreText!: Phaser.GameObjects.Text;
+  private scoreBackdrop!: Phaser.GameObjects.Rectangle;
   private logo!: Phaser.GameObjects.Image;
   private instructionText!: Phaser.GameObjects.Text;
+  private journeyText!: Phaser.GameObjects.Text;
   private resultText!: Phaser.GameObjects.Text;
+  private playerHalo!: Phaser.GameObjects.Ellipse;
+  private introBackdrop!: Phaser.GameObjects.Rectangle;
+  private introTitle!: Phaser.GameObjects.Text;
+  private introStory!: Phaser.GameObjects.Text;
+  private introPrompt!: Phaser.GameObjects.Text;
+  private introVisible = false;
+  private leaderboardBackdrop!: Phaser.GameObjects.Rectangle;
+  private leaderboardTitle!: Phaser.GameObjects.Text;
+  private leaderboardText!: Phaser.GameObjects.Text;
+  private leaderboardButton!: Phaser.GameObjects.Text;
+  private leaderboardBackButton!: Phaser.GameObjects.Text;
+  private leaderboardLoading = false;
   private debugGraphics!: Phaser.GameObjects.Graphics;
   private tuningPanel: TuningPanel | null = null;
   private showHitboxes = false;
@@ -108,31 +124,144 @@ export class FlappyMikeScene extends Phaser.Scene {
       if (this.hitPauseRemainingMs <= 0) this.controller.die();
       if (this.gameOverRemainingMs <= 0) this.showGameOver();
     }
+    this.syncPlayerPresentation();
     this.drawHitboxes();
   }
 
   private createPlayer(): void {
-    this.player = this.physics.add.sprite(LOGICAL_WIDTH * 0.28, LOGICAL_HEIGHT * 0.5, ASSET_KEYS.playerAtlas, 'idle_0').setDepth(20).setDisplaySize(70, 70);
+    this.playerHalo = this.add.ellipse(LOGICAL_WIDTH * 0.28, LOGICAL_HEIGHT * 0.5, 106, 88, 0xffe5a8, 0.2).setDepth(18);
+    this.player = this.physics.add.sprite(LOGICAL_WIDTH * 0.28, LOGICAL_HEIGHT * 0.5, ASSET_KEYS.playerAtlas, 'idle_0')
+      .setDepth(20).setDisplaySize(PLAYER_VISUAL_SIZE, PLAYER_VISUAL_SIZE);
     this.player.setCollideWorldBounds(true, 0, 0, true);
     (this.player.body as Phaser.Physics.Arcade.Body).setAllowRotation(false);
     this.controller = new PlayerController(this.player, this.runtimeConfig);
   }
 
   private createHud(): void {
-    this.logo = this.add.image(LOGICAL_WIDTH / 2, 66, ASSET_KEYS.logo).setDisplaySize(300, 92).setDepth(29);
+    this.logo = this.add.image(LOGICAL_WIDTH / 2, 62, ASSET_KEYS.logo).setDisplaySize(314, 96).setDepth(29);
+    this.scoreBackdrop = this.add.rectangle(20, 18, 164, 70, 0x183745, 0.56).setOrigin(0, 0).setStrokeStyle(2, 0xffe5a8, 0.35).setDepth(28);
     this.scoreText = this.add.text(30, 24, 'DISTANCE\n0', {
       fontFamily: 'Arial Black, sans-serif', fontSize: '26px', color: '#ffffff', align: 'left', stroke: '#1d2930', strokeThickness: 5,
     }).setDepth(30);
-    this.instructionText = this.add.text(LOGICAL_WIDTH / 2, 130, 'TAP TO FLAP', {
+    this.journeyText = this.add.text(LOGICAL_WIDTH / 2, 116, 'PHILADELPHIA  →  LANCASTER', {
+      fontFamily: 'Arial Black, sans-serif', fontSize: '14px', color: '#fff5bd', letterSpacing: 1.2, stroke: '#30434b', strokeThickness: 3,
+    }).setOrigin(0.5).setDepth(30);
+    this.instructionText = this.add.text(LOGICAL_WIDTH / 2, 146, 'TAP TO FLAP', {
       fontFamily: 'Arial Black, sans-serif', fontSize: '28px', color: '#fff5bd', stroke: '#30434b', strokeThickness: 6,
     }).setOrigin(0.5).setDepth(30);
     this.resultText = this.add.text(LOGICAL_WIDTH / 2, LOGICAL_HEIGHT / 2 - 20, '', {
       fontFamily: 'Arial Black, sans-serif', fontSize: '28px', color: '#ffffff', align: 'center', stroke: '#1d2930', strokeThickness: 7, lineSpacing: 10,
     }).setOrigin(0.5).setDepth(30).setVisible(false);
+    this.createIntroStory();
+    this.createLeaderboardView();
+  }
+
+  private createLeaderboardView(): void {
+    this.leaderboardBackdrop = this.add.rectangle(LOGICAL_WIDTH / 2, LOGICAL_HEIGHT / 2, LOGICAL_WIDTH - 44, LOGICAL_HEIGHT - 26, 0xf6f0dc, 0.98)
+      .setStrokeStyle(4, 0x56372c, 0.95).setDepth(45);
+    this.leaderboardTitle = this.add.text(LOGICAL_WIDTH / 2, 42, 'TOP 10 FLIGHTS', {
+      fontFamily: 'Arial Black, sans-serif', fontSize: '30px', color: '#56372c', align: 'center', stroke: '#ffd06a', strokeThickness: 2,
+    }).setOrigin(0.5).setDepth(46);
+    this.leaderboardText = this.add.text(82, 82, '', {
+      fontFamily: 'Arial, sans-serif', fontSize: '16px', color: '#263a38', lineSpacing: 7,
+    }).setDepth(46);
+    this.leaderboardButton = this.add.text(LOGICAL_WIDTH / 2, 430, 'VIEW TOP 10 LEADERBOARD', {
+      fontFamily: 'Arial Black, sans-serif', fontSize: '19px', color: '#f05a28', align: 'center', stroke: '#fffaf0', strokeThickness: 3,
+    }).setOrigin(0.5).setDepth(31).setVisible(false);
+    this.leaderboardBackButton = this.add.text(LOGICAL_WIDTH / 2, 503, '‹ BACK TO RESULTS', {
+      fontFamily: 'Arial Black, sans-serif', fontSize: '19px', color: '#f05a28', align: 'center', stroke: '#fffaf0', strokeThickness: 3,
+    }).setOrigin(0.5).setDepth(46).setInteractive({ useHandCursor: true });
+    this.leaderboardBackButton.on('pointerdown', () => this.hideLeaderboard());
+    this.setLeaderboardVisible(false);
+  }
+
+  private setLeaderboardVisible(visible: boolean): void {
+    [this.leaderboardBackdrop, this.leaderboardTitle, this.leaderboardText, this.leaderboardBackButton].forEach((object) => object.setVisible(visible));
+  }
+
+  private async showLeaderboard(): Promise<void> {
+    if (this.leaderboardLoading) return;
+    this.leaderboardLoading = true;
+    this.state = 'LEADERBOARD';
+    this.logo.setVisible(false);
+    this.resultText.setVisible(false);
+    this.leaderboardButton.setVisible(false);
+    this.leaderboardText.setPosition(82, 82).setOrigin(0, 0);
+    this.setLeaderboardVisible(true);
+    this.leaderboardText.setText('LOADING THE CREW LEADERBOARD…');
+    try {
+      const response = await this.platform.getTopDistances();
+      const rows = response.entries.slice(0, 10).map((entry) => {
+        const player = entry.nickname || entry.display_name || 'Unknown pilot';
+        const when = new Date(entry.achieved_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' });
+        return `${String(entry.rank).padStart(2, ' ')}  ${player.slice(0, 18).padEnd(18, ' ')}  ${Math.round(entry.value).toLocaleString().padStart(7, ' ')}  ${when}`;
+      });
+      this.leaderboardText.setText(rows.length ? ['RANK  PLAYER              DISTANCE  DATE / TIME', ...rows].join('\n') : 'NO FLIGHTS RECORDED YET.');
+    } catch {
+      this.leaderboardText.setText('LEADERBOARD UNAVAILABLE RIGHT NOW.\n\nCHECK YOUR CONNECTION OR SIGN IN\nTO SEE THE CREW\'S TOP FLIGHTS.');
+    } finally {
+      this.leaderboardLoading = false;
+    }
+  }
+
+  private hideLeaderboard(): void {
+    if (this.state !== 'LEADERBOARD') return;
+    this.state = 'GAME_OVER';
+    this.setLeaderboardVisible(false);
+    this.logo.setVisible(true);
+    this.resultText.setVisible(true);
+    this.leaderboardButton.setVisible(true);
+  }
+
+  private createIntroStory(): void {
+    this.introBackdrop = this.add.rectangle(LOGICAL_WIDTH / 2, LOGICAL_HEIGHT / 2, LOGICAL_WIDTH - 84, LOGICAL_HEIGHT - 64, 0xf6f0dc, 0.97)
+      .setStrokeStyle(4, 0x56372c, 0.95).setDepth(40);
+    this.introTitle = this.add.text(LOGICAL_WIDTH / 2, 126, 'THE LONG WAY HOME', {
+      fontFamily: 'Arial Black, sans-serif', fontSize: '34px', color: '#56372c', align: 'center', stroke: '#ffd06a', strokeThickness: 2,
+    }).setOrigin(0.5).setDepth(41);
+    this.introStory = this.add.text(LOGICAL_WIDTH / 2, 218,
+      'Flappy Mike was lost in Philadelphia\nfor far too long. Now he needs to find\nhis way back home to Lancaster.', {
+        fontFamily: 'Arial, sans-serif', fontSize: '25px', color: '#263a38', align: 'center', lineSpacing: 12,
+      }).setOrigin(0.5).setDepth(41);
+    this.introPrompt = this.add.text(LOGICAL_WIDTH / 2, 390, 'TAP OR PRESS SPACE TO BEGIN', {
+      fontFamily: 'Arial Black, sans-serif', fontSize: '22px', color: '#f05a28', align: 'center', stroke: '#fffaf0', strokeThickness: 3,
+    }).setOrigin(0.5).setDepth(41);
+    this.introVisible = !this.hasSeenIntro();
+    this.setIntroVisible(this.introVisible);
+  }
+
+  private hasSeenIntro(): boolean {
+    try {
+      return window.localStorage.getItem(INTRO_SEEN_STORAGE_KEY) === 'true';
+    } catch {
+      return false;
+    }
+  }
+
+  private setIntroVisible(visible: boolean): void {
+    this.introVisible = visible;
+    [this.introBackdrop, this.introTitle, this.introStory, this.introPrompt].forEach((object) => object.setVisible(visible));
+  }
+
+  private dismissIntro(): void {
+    this.setIntroVisible(false);
+    try {
+      window.localStorage.setItem(INTRO_SEEN_STORAGE_KEY, 'true');
+    } catch {
+      // The intro remains dismissible when storage is unavailable.
+    }
   }
 
   private setupInput(): void {
-    this.input.on('pointerdown', () => this.flapOrRetry());
+    this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      if (this.state === 'GAME_OVER' && pointer.worldY >= 390 && pointer.worldY <= 480) {
+        void this.showLeaderboard();
+        return;
+      }
+      if (this.state === 'GAME_OVER' && pointer.worldY >= 480) return;
+      if (this.state === 'LEADERBOARD') return;
+      this.flapOrRetry();
+    });
     this.input.keyboard?.on('keydown', (event: KeyboardEvent) => {
       if (event.code === 'F2' && this.tuningPanel) {
         this.tuningPanel.toggle();
@@ -141,6 +270,7 @@ export class FlappyMikeScene extends Phaser.Scene {
       if (this.tuningPanel?.handleKey(event.code)) return;
       if (event.code === 'Space') {
         event.preventDefault();
+        if (this.state === 'LEADERBOARD') return;
         this.flapOrRetry();
       }
     });
@@ -167,6 +297,11 @@ export class FlappyMikeScene extends Phaser.Scene {
 
   private flapOrRetry(): void {
     if (this.manuallyPaused || this.tuningPanel?.isVisible()) return;
+    if (this.introVisible) {
+      this.dismissIntro();
+      this.startRun();
+      return;
+    }
     if (this.state === 'READY') {
       this.startRun();
       return;
@@ -186,6 +321,7 @@ export class FlappyMikeScene extends Phaser.Scene {
     this.state = 'PLAYING';
     this.logo.setVisible(false);
     this.instructionText.setVisible(false);
+    this.journeyText.setVisible(false);
     this.controller.begin();
     this.controller.flap();
     this.audio.flap();
@@ -215,7 +351,9 @@ export class FlappyMikeScene extends Phaser.Scene {
     this.platform.recordRun(score);
     const best = Math.max(previousBest, score);
     this.logo.setVisible(true);
+    this.journeyText.setVisible(false);
     this.resultText.setText(`DISTANCE\n${score.toLocaleString()}\n\nBEST\n${best.toLocaleString()}\n\nTAP TO RETRY`).setVisible(true);
+    this.leaderboardButton.setVisible(true);
     this.refreshScore(true);
   }
 
@@ -227,8 +365,11 @@ export class FlappyMikeScene extends Phaser.Scene {
     this.obstacleCollider.active = true;
     this.controller.reset(LOGICAL_WIDTH * 0.28, LOGICAL_HEIGHT * 0.5);
     this.instructionText.setVisible(true);
+    this.journeyText.setVisible(true);
     this.logo.setVisible(true);
     this.resultText.setVisible(false);
+    this.leaderboardButton.setVisible(false);
+    this.setLeaderboardVisible(false);
     this.hitPauseRemainingMs = 0;
     this.gameOverRemainingMs = 0;
     this.lastScore = -1;
@@ -242,6 +383,11 @@ export class FlappyMikeScene extends Phaser.Scene {
     this.lastScore = score;
     this.scoreRefreshMs = 0;
     this.scoreText.setText(`DISTANCE\n${score.toLocaleString()}`);
+  }
+
+  private syncPlayerPresentation(): void {
+    this.playerHalo.setPosition(this.player.x, this.player.y + 3);
+    this.playerHalo.setVisible(this.state === 'READY').setAlpha(0.24);
   }
 
   private applyArtPreviewFromQuery(): void {

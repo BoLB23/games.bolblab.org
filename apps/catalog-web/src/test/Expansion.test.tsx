@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
@@ -9,6 +9,8 @@ const mocks = vi.hoisted(() => ({
   clanList: vi.fn(),
   leaderboardList: vi.fn(),
   leaderboardGet: vi.fn(),
+  refetch: vi.fn(),
+  user: { id: 'pat', display_name: 'Pat Player', email: null, avatar_url: null, is_admin: false, role: 'member', last_login_at: null, last_seen_at: null, needs_player_setup: false },
 }));
 
 vi.mock('../api', () => ({
@@ -24,14 +26,17 @@ vi.mock('../api', () => ({
 
 vi.mock('../auth', () => ({
   useAuth: () => ({
-    user: { id: 'pat', display_name: 'Pat Player', email: null, avatar_url: null, is_admin: false, role: 'member', last_login_at: null, last_seen_at: null },
+    user: mocks.user,
     isLoading: false,
-    refetch: vi.fn(),
+    refetch: mocks.refetch,
     signOut: vi.fn(),
   }),
+  ME_QUERY_KEY: ['me'],
+  PLAYER_QUERY_KEY: (userId: string) => ['player', userId],
+  markGoogleLoginIntent: vi.fn(),
 }));
 
-import { ClanPage, formatLeaderboardValue, LeaderboardsPage, MyPlayerPage } from '../pages';
+import { ClanPage, formatLeaderboardValue, LeaderboardsPage, MyPlayerPage, RequireAuth } from '../pages';
 
 const appearance = { nickname: 'Pat', haircut: 'short', hair_color: '#2b1d13', tshirt_color: '#f05a28', pants_color: '#1b2330', shoe_color: '#f5efe4' };
 const player = { id: 'profile', user_id: 'pat', ...appearance, created_at: '', updated_at: '' };
@@ -40,9 +45,23 @@ function renderPage(page: React.ReactNode) {
   render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><MemoryRouter>{page}</MemoryRouter></QueryClientProvider>);
 }
 
-afterEach(() => vi.clearAllMocks());
+afterEach(() => {
+  vi.clearAllMocks();
+  mocks.user = { id: 'pat', display_name: 'Pat Player', email: null, avatar_url: null, is_admin: false, role: 'member', last_login_at: null, last_seen_at: null, needs_player_setup: false };
+  mocks.refetch.mockResolvedValue({ id: 'pat', display_name: 'Pat Player', email: null, avatar_url: null, is_admin: false, role: 'member', last_login_at: null, last_seen_at: null, needs_player_setup: false });
+});
 
 describe('player, clan, and leaderboard surfaces', () => {
+  it('routes a newly signed-in user to character setup before protected pages', async () => {
+    mocks.user = { ...mocks.user, needs_player_setup: true };
+    render(<MemoryRouter initialEntries={['/games']}><Routes>
+      <Route path="/games" element={<RequireAuth><p>Games page</p></RequireAuth>} />
+      <Route path="/my-player" element={<p>Character setup</p>} />
+    </Routes></MemoryRouter>);
+    expect(await screen.findByText('Character setup')).toBeInTheDocument();
+    expect(screen.queryByText('Games page')).not.toBeInTheDocument();
+  });
+
   it('updates the player preview and rejects an invalid nickname before saving', async () => {
     mocks.playerGet.mockResolvedValue(player);
     renderPage(<MyPlayerPage />);
@@ -54,6 +73,16 @@ describe('player, clan, and leaderboard surfaces', () => {
     fireEvent.change(nickname, { target: { value: '1234567890' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save player' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('limited to 9 characters');
+    expect(mocks.playerUpdate).not.toHaveBeenCalled();
+  });
+
+  it('does not save a player after another tab has changed the signed-in account', async () => {
+    mocks.playerGet.mockResolvedValue(player);
+    mocks.refetch.mockResolvedValue({ id: 'mara', display_name: 'Mara Member', email: null, avatar_url: null, is_admin: false, role: 'member', last_login_at: null, last_seen_at: null, needs_player_setup: false });
+    renderPage(<MyPlayerPage />);
+    await screen.findByLabelText(/Nickname/);
+    fireEvent.click(screen.getByRole('button', { name: 'Save player' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('account changed in another tab');
     expect(mocks.playerUpdate).not.toHaveBeenCalled();
   });
 
