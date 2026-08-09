@@ -18,6 +18,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - run: npm run build --workspace @game-platform/game-client-sdk
       - run: npm run lint:workspaces
       - run: npm run typecheck:workspaces
       - run: npm run test:workspaces
