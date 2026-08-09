@@ -1,6 +1,6 @@
 # FlappyMike
 
-FlappyMike is an independent Phaser 4.2.1/Vite game that connects to the platform only through `@game-platform/game-client-sdk`. It launches on port 6185 locally and is served at `/games/flappy-mike/` by the production web image.
+FlappyMike is an independent Phaser 4.2.1/Vite game that connects to the platform only through `@bolb23/game-client-sdk`. It launches on port 6185 locally and is served at `/games/flappy-mike/` by the production web image.
 
 Controls: click/tap or press Space to flap. The first flap starts the run. A run uses a fixed 960×540 logical world and Arcade Physics; the player stays at 28% of the screen while obstacles and parallax scenery travel left.
 

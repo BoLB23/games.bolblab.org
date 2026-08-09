@@ -1,4 +1,4 @@
-import { createGamePlatformClient, GamePlatformApiError } from '@game-platform/game-client-sdk';
+import { createGamePlatformClient, GamePlatformApiError } from '@bolb23/game-client-sdk';
 
 export const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8001/api/v1';
 export const authMode = import.meta.env.VITE_AUTH_MODE ?? 'development';

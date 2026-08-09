@@ -13,7 +13,7 @@
     "typecheck": "tsc -b --pretty false"
   },
   "dependencies": {
-    "@game-platform/game-client-sdk": "*",
+    "@bolb23/game-client-sdk": "*",
     "phaser": "4.2.1"
   },
   "devDependencies": {

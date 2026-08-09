@@ -14,7 +14,7 @@ MILTON_ESTATES_CLOUD_SAVES_ENABLED=true
 ```bash
 npm run db:migrate
 npm run db:seed
-npm run build --workspace @game-platform/game-client-sdk
+npm run build --workspace @bolb23/game-client-sdk
 ```
 
 The independent Milton project can consume the SDK as documented in [`SDK_LOCAL_DEVELOPMENT.md`](SDK_LOCAL_DEVELOPMENT.md). Its browser origin must remain in `GAME_CORS_ALLOWED_ORIGINS`.
@@ -37,7 +37,7 @@ import {
   createGamePlatformClient,
   createGameSaveCache,
   GamePlatformApiError,
-} from '@game-platform/game-client-sdk';
+} from '@bolb23/game-client-sdk';
 
 const gameSlug = 'milton-estates';
 const slot = 'primary';

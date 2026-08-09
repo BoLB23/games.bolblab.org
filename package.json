@@ -19,7 +19,7 @@
     "typecheck": "npm run typecheck:api && npm run typecheck:workspaces",
     "typecheck:api": "cd apps/api && uv run mypy app",
     "typecheck:workspaces": "npm run typecheck --workspaces --if-present",
-    "build": "npm run build --workspace @game-platform/game-client-sdk && npm run build --workspace @game-platform/catalog-web && npm run build --workspace @game-platform/sample-game && npm run build --workspace @game-platform/flappy-mike",
+    "build": "npm run build --workspace @bolb23/game-client-sdk && npm run build --workspace @game-platform/catalog-web && npm run build --workspace @game-platform/sample-game && npm run build --workspace @game-platform/flappy-mike",
     "db:migrate": "cd apps/api && uv run alembic upgrade head",
     "db:seed": "cd apps/api && uv run python -m app.cli seed",
     "db:reset": "node scripts/db-reset.mjs"

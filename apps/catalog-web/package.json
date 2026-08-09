@@ -11,7 +11,7 @@
     "typecheck": "tsc -b --pretty false"
   },
   "dependencies": {
-    "@game-platform/game-client-sdk": "*",
+    "@bolb23/game-client-sdk": "*",
     "@tanstack/react-query": "^5.66.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

@@ -1,6 +1,6 @@
 import { createContext, useContext, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import type { PlatformUser } from '@game-platform/game-client-sdk';
+import type { PlatformUser } from '@bolb23/game-client-sdk';
 import { client, GamePlatformApiError, logout } from './api';
 
 interface AuthValue { user: PlatformUser | null; isLoading: boolean; refetch: () => Promise<unknown>; signOut: () => Promise<void> }

@@ -7,7 +7,7 @@ import type {
   PlayerProfileResponse,
   PlayerUpdateInput,
   PlatformClanMember,
-} from '@game-platform/game-client-sdk';
+} from '@bolb23/game-client-sdk';
 import { authMode, client, devLogin, getDevelopmentUsers, googleLoginUrl } from './api';
 import { useAuth } from './auth';
 import { CapabilityTags, GameArt, GameCard, HAIRCUT_OPTIONS, PLAYER_PALETTES, PlayerAvatar, RoleBadge } from './components';

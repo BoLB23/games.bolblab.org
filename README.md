@@ -63,7 +63,7 @@ All routes below live under `/api/v1` and require the current HTTP-only platform
 
 Leaderboard entries are aggregated server-side using each definition’s `max`, `min`, `latest`, or `sum` rule. A submission never accepts a score-owner user ID; the authenticated session is the owner.
 
-Games use `@game-platform/game-client-sdk`. The main shared methods are `getCurrentPlayer()`, `startGameSession(gameSlug)`, and `submitLeaderboardEntry(gameSlug, input)`. The SDK returns camelCase `PlatformPlayer` data while the API keeps its normal snake_case JSON contract.
+Games use `@bolb23/game-client-sdk`. The main shared methods are `getCurrentPlayer()`, `startGameSession(gameSlug)`, and `submitLeaderboardEntry(gameSlug, input)`. The SDK returns camelCase `PlatformPlayer` data while the API keeps its normal snake_case JSON contract. Independent game repositories install a released version from GitHub Packages; see [`docs/SDK_LOCAL_DEVELOPMENT.md`](docs/SDK_LOCAL_DEVELOPMENT.md).
 
 ## Internal Kubernetes deployment
 

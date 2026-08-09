@@ -1,12 +1,21 @@
 {
-  "name": "@game-platform/game-client-sdk",
+  "name": "@bolb23/game-client-sdk",
   "version": "0.1.0",
-  "private": true,
+  "description": "Typed browser client for the BoLB game platform API.",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": { ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js", "default": "./dist/index.js" } },
   "files": ["dist"],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/BoLB23/games.bolblab.org.git"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com",
+    "access": "public"
+  },
+  "engines": { "node": ">=22" },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "watch": "tsc -p tsconfig.json --watch",

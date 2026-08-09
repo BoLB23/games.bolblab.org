@@ -1,4 +1,4 @@
-import { createGamePlatformClient, type GameSessionHandle } from '@game-platform/game-client-sdk';
+import { createGamePlatformClient, type GameSessionHandle } from '@bolb23/game-client-sdk';
 import { GAME_ID, LEVEL_ID } from '../config/gameplay';
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8001/api/v1';

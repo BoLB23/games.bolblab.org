@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
-import type { ClanRole, PlatformGame, PlayerAppearanceResponse } from '@game-platform/game-client-sdk';
+import type { ClanRole, PlatformGame, PlayerAppearanceResponse } from '@bolb23/game-client-sdk';
 
 export const HAIRCUT_OPTIONS = [
   { key: 'short', label: 'Short' },

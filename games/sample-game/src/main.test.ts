@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createGamePlatformClient } from '@game-platform/game-client-sdk';
+import { createGamePlatformClient } from '@bolb23/game-client-sdk';
 
 describe('sample game SDK boundary', () => {
   it('can create the independent game client', () => {

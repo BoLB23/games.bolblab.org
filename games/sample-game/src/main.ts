@@ -1,4 +1,4 @@
-import { createGamePlatformClient, GamePlatformApiError, type GameSessionHandle, type PlatformPlayer } from '@game-platform/game-client-sdk';
+import { createGamePlatformClient, GamePlatformApiError, type GameSessionHandle, type PlatformPlayer } from '@bolb23/game-client-sdk';
 import './style.css';
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8001/api/v1';
