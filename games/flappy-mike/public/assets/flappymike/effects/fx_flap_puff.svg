@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="32" viewBox="0 0 48 32">
+  <defs>
+  <filter id="paper" x="-10%" y="-10%" width="120%" height="120%">
+    <feTurbulence baseFrequency=".7" numOctaves="2" seed="7" type="fractalNoise" result="n"/>
+    <feColorMatrix in="n" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 .045 0"/>
+    <feBlend in="SourceGraphic" mode="multiply"/>
+  </filter></defs>
+  <g filter="url(#paper)"><path d="M6 24q-7-12 8-16q8-12 18 0q15-2 12 12q-4 10-16 7q-10 9-17 0Z" fill="#fff4d6" opacity=".75"/></g>
+</svg>

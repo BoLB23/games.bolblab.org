@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
-from app.auth.session import read_session_value
+from app.auth.session import get_session
 from app.core.config import Settings, get_settings
 from app.db.session import get_db_session
 from app.models.user import ClanRole, User
@@ -16,15 +16,15 @@ def get_current_user(
     settings: Settings = Depends(get_settings),
 ) -> User:
     value = request.cookies.get(settings.session_cookie_name)
-    user_id = read_session_value(settings, value) if value else None
-    user = get_user(session, user_id) if user_id else None
+    platform_session = get_session(session, value)
+    user = get_user(session, platform_session.user_id) if platform_session else None
     if user is None or not user.is_active:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication is required")
     return user
 
 
 def require_development(settings: Settings = Depends(get_settings)) -> Settings:
-    if settings.app_env != "development":
+    if settings.app_env != "development" or settings.auth_mode != "development":
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Development authentication is disabled")
     return settings
 

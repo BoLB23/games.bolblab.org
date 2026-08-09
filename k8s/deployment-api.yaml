@@ -42,7 +42,13 @@ spec:
             - name: CATALOG_ORIGIN
               value: http://games.int.bolblab.org
             - name: SAMPLE_GAME_ORIGIN
-              value: http://games.int.bolblab.org/games/sample-game/
+              value: http://games.int.bolblab.org
+            - name: SAMPLE_GAME_LAUNCH_URL
+              value: http://games.int.bolblab.org/games/sample-game
+            - name: FLAPPY_MIKE_ORIGIN
+              value: http://games.int.bolblab.org
+            - name: FLAPPY_MIKE_LAUNCH_URL
+              value: http://games.int.bolblab.org/games/flappy-mike
           volumeMounts:
             - name: data
               mountPath: /data
@@ -68,7 +74,13 @@ spec:
             - name: CATALOG_ORIGIN
               value: http://games.int.bolblab.org
             - name: SAMPLE_GAME_ORIGIN
-              value: http://games.int.bolblab.org/games/sample-game/
+              value: http://games.int.bolblab.org
+            - name: SAMPLE_GAME_LAUNCH_URL
+              value: http://games.int.bolblab.org/games/sample-game
+            - name: FLAPPY_MIKE_ORIGIN
+              value: http://games.int.bolblab.org
+            - name: FLAPPY_MIKE_LAUNCH_URL
+              value: http://games.int.bolblab.org/games/flappy-mike
           startupProbe:
             httpGet:
               path: /api/v1/health

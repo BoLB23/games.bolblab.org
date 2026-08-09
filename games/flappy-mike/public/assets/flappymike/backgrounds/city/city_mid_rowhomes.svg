@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="180" viewBox="0 0 960 180">
+  <defs>
+  <filter id="paper" x="-10%" y="-10%" width="120%" height="120%">
+    <feTurbulence baseFrequency=".7" numOctaves="2" seed="7" type="fractalNoise" result="n"/>
+    <feColorMatrix in="n" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 .045 0"/>
+    <feBlend in="SourceGraphic" mode="multiply"/>
+  </filter></defs>
+  <g filter="url(#paper)">
+  <rect y="55" width="960" height="125" fill="#9b4f44"/>
+  <path d="M0 55h105V31h105v24h120V18h112v37h98V36h128v19h97V25h113v30h82v125H0Z" fill="#a95a4b" stroke="#573c39" stroke-width="6"/>
+  <g fill="#f0c778" stroke="#573c39" stroke-width="4"><rect x="24" y="76" width="28" height="44" rx="3"/><rect x="104" y="86" width="28" height="44" rx="3"/><rect x="184" y="76" width="28" height="44" rx="3"/><rect x="264" y="86" width="28" height="44" rx="3"/><rect x="344" y="76" width="28" height="44" rx="3"/><rect x="424" y="86" width="28" height="44" rx="3"/><rect x="504" y="76" width="28" height="44" rx="3"/><rect x="584" y="86" width="28" height="44" rx="3"/><rect x="664" y="76" width="28" height="44" rx="3"/><rect x="744" y="86" width="28" height="44" rx="3"/><rect x="824" y="76" width="28" height="44" rx="3"/><rect x="904" y="86" width="28" height="44" rx="3"/></g>
+  <g stroke="#75433c" stroke-width="3" opacity=".55"><path d="M0 72h960"/><path d="M0 87h960"/><path d="M0 102h960"/><path d="M0 117h960"/><path d="M0 132h960"/><path d="M0 147h960"/><path d="M0 162h960"/><path d="M0 177h960"/></g>
+  <g fill="#526870"><rect x="145" y="3" width="44" height="25" rx="3"/><rect x="601" y="11" width="52" height="25" rx="3"/></g>
+</g>
+</svg>

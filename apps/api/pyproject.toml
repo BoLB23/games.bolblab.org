@@ -5,7 +5,9 @@ description = "API for the private game platform"
 requires-python = ">=3.11"
 dependencies = [
   "alembic>=1.14,<2",
+  "authlib>=1.4,<2",
   "fastapi>=0.115,<1",
+  "httpx>=0.28,<1",
   "itsdangerous>=2.2,<3",
   "pydantic-settings>=2.7,<3",
   "sqlalchemy>=2.0,<3",
@@ -13,7 +15,7 @@ dependencies = [
 ]
 
 [dependency-groups]
-dev = ["httpx>=0.28,<1", "mypy>=1.13,<2", "pytest>=8.3,<9", "ruff>=0.8,<1"]
+dev = ["mypy>=1.13,<2", "pytest>=8.3,<9", "ruff>=0.8,<1"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -30,3 +32,7 @@ ignore = ["B008", "E501"]
 python_version = "3.11"
 strict = true
 exclude = ["migrations"]
+
+[[tool.mypy.overrides]]
+module = ["authlib.*"]
+ignore_missing_imports = true

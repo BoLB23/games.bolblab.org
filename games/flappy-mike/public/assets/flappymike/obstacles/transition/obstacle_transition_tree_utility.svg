@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="512" viewBox="0 0 128 512">
+  <defs>
+  <filter id="paper" x="-10%" y="-10%" width="120%" height="120%">
+    <feTurbulence baseFrequency=".7" numOctaves="2" seed="7" type="fractalNoise" result="n"/>
+    <feColorMatrix in="n" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 .045 0"/>
+    <feBlend in="SourceGraphic" mode="multiply"/>
+  </filter></defs>
+  <g filter="url(#paper)">
+  <rect x="5" y="0" width="118" height="512" rx="10" fill="#65775a" stroke="#342f2d" stroke-width="8"/>
+  <path d="M64 24v420" stroke="#66513a" stroke-width="16"/><path d="M18 112h92" stroke="#4b443a" stroke-width="9"/><g fill="#57794c" stroke="#354d39" stroke-width="5"><circle cx="33" cy="223" r="35"/><circle cx="86" cy="238" r="40"/><circle cx="57" cy="292" r="44"/></g>
+  <path d="M3 467h122v45H3Z" fill="#a4a16c" stroke="#342f2d" stroke-width="8"/>
+  <path d="M14 477h100" stroke="#fff4cf" stroke-width="5" opacity=".45"/>
+</g>
+</svg>

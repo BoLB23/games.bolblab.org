@@ -1,0 +1,29 @@
+{
+  "name": "@game-platform/flappy-mike",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port 6185",
+    "art:fallbacks": "node tools/generate-fallback-art.mjs",
+    "art:atlas": "uv run --with pillow python tools/build-flappymike-atlas.py",
+    "build": "tsc -b && vite build",
+    "test": "vitest run",
+    "lint": "eslint src",
+    "typecheck": "tsc -b --pretty false"
+  },
+  "dependencies": {
+    "@game-platform/game-client-sdk": "*",
+    "phaser": "4.2.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.20.0",
+    "@types/node": "^22.13.4",
+    "eslint": "^9.20.1",
+    "jsdom": "^26.0.0",
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.24.0",
+    "vite": "^6.1.0",
+    "vitest": "^3.0.5"
+  }
+}

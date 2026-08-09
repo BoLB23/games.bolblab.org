@@ -1,10 +1,12 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
+from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_current_user, require_development
-from app.auth.session import create_session_value
+from app.auth.oidc import OidcError, complete_login, start_login
+from app.auth.session import create_session, revoke_session
 from app.core.config import Settings, get_settings
 from app.db.session import get_db_session
 from app.models.common import utc_now
@@ -13,6 +15,60 @@ from app.repositories.users import get_user, list_active_users
 from app.schemas.auth import DevelopmentUserResponse, DevLoginRequest, UserResponse
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+
+def _safe_return_path(value: str | None) -> str:
+    if not value or not value.startswith("/") or value.startswith("//") or "\\" in value or len(value) > 2048:
+        return "/"
+    if any(ord(character) < 32 for character in value):
+        return "/"
+    return value
+
+
+def _login_error_redirect(settings: Settings) -> RedirectResponse:
+    return RedirectResponse(f"{settings.catalog_origin}/login?error=google_login_failed", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@router.get("/login")
+def oidc_login(
+    next_path: str | None = Query(default=None, alias="next"),
+    session: Session = Depends(get_db_session),
+    settings: Settings = Depends(get_settings),
+) -> RedirectResponse:
+    if settings.auth_mode != "oidc":
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="OIDC authentication is disabled")
+    try:
+        return RedirectResponse(start_login(session, settings, _safe_return_path(next_path)), status_code=status.HTTP_303_SEE_OTHER)
+    except OidcError:
+        return _login_error_redirect(settings)
+
+
+@router.get("/callback")
+def oidc_callback(
+    code: str | None = None,
+    state_value: str | None = Query(default=None, alias="state"),
+    _error: str | None = Query(default=None, alias="error"),
+    session: Session = Depends(get_db_session),
+    settings: Settings = Depends(get_settings),
+) -> RedirectResponse:
+    if settings.auth_mode != "oidc":
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="OIDC authentication is disabled")
+    if not code or not state_value:
+        return _login_error_redirect(settings)
+    try:
+        user, return_path, _subject = complete_login(session, settings, code, state_value)
+        session_token = create_session(session, settings, user.id)
+        session.commit()
+    except OidcError:
+        return _login_error_redirect(settings)
+    redirect = RedirectResponse(f"{settings.catalog_origin}{return_path}", status_code=status.HTTP_303_SEE_OTHER)
+    redirect.set_cookie(
+        key=settings.session_cookie_name, value=session_token, httponly=True, samesite="lax",
+        secure=settings.session_cookie_secure, max_age=settings.session_ttl_seconds, path="/",
+    )
+    redirect.headers["Cache-Control"] = "no-store"
+    redirect.headers["Referrer-Policy"] = "no-referrer"
+    return redirect
 
 
 @router.get("/me", response_model=UserResponse)
@@ -42,18 +98,27 @@ def development_login(
     user.last_seen_at = timestamp
     session.commit()
     session.refresh(user)
+    session_token = create_session(session, settings, user.id)
+    session.commit()
     response.set_cookie(
         key=settings.session_cookie_name,
-        value=create_session_value(settings, user.id),
+        value=session_token,
         httponly=True,
         samesite="lax",
         secure=settings.session_cookie_secure,
-        max_age=60 * 60 * 24 * 7,
+        max_age=settings.session_ttl_seconds,
         path="/",
     )
     return user
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
-def logout(response: Response, settings: Settings = Depends(get_settings)) -> None:
+def logout(
+    request: Request,
+    response: Response,
+    session: Session = Depends(get_db_session),
+    settings: Settings = Depends(get_settings),
+) -> None:
+    revoke_session(session, request.cookies.get(settings.session_cookie_name))
+    session.commit()
     response.delete_cookie(key=settings.session_cookie_name, path="/")

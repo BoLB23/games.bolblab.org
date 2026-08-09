@@ -12,6 +12,8 @@ describe('catalog game rendering', () => {
   it('renders a playable game with a launch action', () => {
     render(<QueryClientProvider client={new QueryClient()}><MemoryRouter><GameCard game={game} /></MemoryRouter></QueryClientProvider>);
     expect(screen.getByRole('link', { name: 'Play now' })).toHaveAttribute('href', 'http://game.test');
+    expect(screen.getByRole('link', { name: 'Play now' })).toHaveAttribute('target', '_blank');
+    expect(screen.getByRole('link', { name: 'Play now' })).toHaveAttribute('rel', 'noopener noreferrer');
     expect(screen.getByText('Sample Game')).toBeInTheDocument();
   });
 

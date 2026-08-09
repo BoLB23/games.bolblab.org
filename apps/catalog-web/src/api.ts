@@ -1,6 +1,7 @@
 import { createGamePlatformClient, GamePlatformApiError } from '@game-platform/game-client-sdk';
 
 export const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8001/api/v1';
+export const authMode = import.meta.env.VITE_AUTH_MODE ?? 'development';
 export const client = createGamePlatformClient({ apiBaseUrl });
 export { GamePlatformApiError };
 
@@ -18,3 +19,4 @@ async function devRequest<T>(path: string, body?: unknown): Promise<T> {
 export const getDevelopmentUsers = () => devRequest<DevelopmentUser[]>('/auth/dev/users');
 export const devLogin = (userId: string) => devRequest('/auth/dev/login', { user_id: userId });
 export const logout = () => fetch(`${apiBaseUrl}/auth/logout`, { method: 'POST', credentials: 'include' });
+export function googleLoginUrl(returnPath: string): string { return `${apiBaseUrl}/auth/login?next=${encodeURIComponent(returnPath)}`; }

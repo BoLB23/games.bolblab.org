@@ -12,6 +12,7 @@ from app.db.base import Base
 from app.models.common import utc_now
 
 if TYPE_CHECKING:
+    from app.models.game_save import PlayerGameProfile
     from app.models.game_session import GameSession
     from app.models.leaderboard import LeaderboardDefinition
 
@@ -45,6 +46,9 @@ class Game(Base):
         DateTime(timezone=True), nullable=False, default=utc_now, onupdate=utc_now
     )
     game_sessions: Mapped[list[GameSession]] = relationship(back_populates="game")
+    player_game_profiles: Mapped[list[PlayerGameProfile]] = relationship(
+        back_populates="game", cascade="all, delete-orphan"
+    )
     leaderboards: Mapped[list[LeaderboardDefinition]] = relationship(
         back_populates="game", cascade="all, delete-orphan"
     )

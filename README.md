@@ -8,6 +8,7 @@ A small private browser-game platform for a handful of longtime friends. It incl
 - `apps/api` — FastAPI modular monolith on port 8001, using synchronous SQLAlchemy sessions.
 - `packages/game-client-sdk` — framework-independent typed fetch client used by games.
 - `games/sample-game` — standalone vanilla TypeScript/Vite game on port 6184.
+- `games/flappy-mike` — standalone Phaser 4 mini-game on port 6185.
 - `data` — local SQLite database (ignored by Git).
 
 The authenticated catalog exposes Games, My Player, My Clan, and Leaderboards. Player appearance is stored once per platform user and is returned to games through the SDK. Presence uses a server timestamp refreshed by a periodic browser heartbeat; playtime uses capped game-session heartbeats.
@@ -26,12 +27,18 @@ npm run dev
 
 `npm run setup` copies `.env.example` to `.env` when needed and runs `uv sync` within `apps/api`. Replace the development `SESSION_SECRET` before using any shared environment. Visit `http://localhost:6183`, choose a development user, and launch Sample Game. API docs are available at `http://127.0.0.1:8001/api/v1/docs` in development.
 
+## Google login
+
+Local testing keeps the seeded player picker with `AUTH_MODE=development` and `VITE_AUTH_MODE=development`. Google login is enabled only when **both** values are `oidc`. Configure a Google OAuth **Web application** client with the exact redirect URI `OIDC_CALLBACK_URL` (normally `https://<catalog-host>/api/v1/auth/callback`) and add these server-side values to the deployment secret: `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, and `OIDC_TRANSACTION_SECRET`. Set `OIDC_ISSUER=https://accounts.google.com`.
+
+The API owns the authorization-code exchange and validates Google ID tokens; browser JavaScript receives only the platform’s HTTP-only session cookie. In production, configuration fails closed unless OIDC is selected, all OIDC values are present, the catalog/redirect use HTTPS, secure cookies are enabled, and the cookie name starts with `__Host-`.
+
 ## Commands
 
 ```bash
 npm install       # install all browser-workspace dependencies
 npm run setup     # create .env if absent and sync the API environment with uv
-npm run dev       # API :8001, catalog :6183, sample game :6184
+npm run dev       # API :8001, catalog :6183, sample game :6184, FlappyMike :6185
 npm run test      # Pytest and Vitest suites
 npm run lint      # Ruff and ESLint
 npm run typecheck # mypy and TypeScript checks

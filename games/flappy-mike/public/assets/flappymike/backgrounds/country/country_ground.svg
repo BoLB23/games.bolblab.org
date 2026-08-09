@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="70" viewBox="0 0 960 70">
+  <defs>
+  <filter id="paper" x="-10%" y="-10%" width="120%" height="120%">
+    <feTurbulence baseFrequency=".7" numOctaves="2" seed="7" type="fractalNoise" result="n"/>
+    <feColorMatrix in="n" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 .045 0"/>
+    <feBlend in="SourceGraphic" mode="multiply"/>
+  </filter></defs>
+  <g filter="url(#paper)">
+  <rect width="960" height="70" fill="#47763e"/>
+  <path d="M0 12h960" stroke="#9ab35e" stroke-width="6"/>
+  <path d="M0 70q12-34 24 0" stroke="#9ab35e" stroke-width="4" fill="none"/><path d="M42 70q12-34 24 0" stroke="#9ab35e" stroke-width="4" fill="none"/><path d="M84 70q12-34 24 0" stroke="#9ab35e" stroke-width="4" fill="none"/><path d="M126 70q12-34 24 0" stroke="#9ab35e" stroke-width="4" fill="none"/><path d="M168 70q12-34 24 0" stroke="#9ab35e" stroke-width="4" fill="none"/><path d="M210 70q12-34 24 0" stroke="#9ab35e" stroke-width="4" fill="none"/><path d="M252 70q12-34 24 0" stroke="#9ab35e" stroke-width="4" fill="none"/><path d="M294 70q12-34 24 0" stroke="#9ab35e" stroke-width="4" fill="none"/><path d="M336 70q12-34 24 0" stroke="#9ab35e" stroke-width="4" fill="none"/><path d="M378 70q12-34 24 0" stroke="#9ab35e" stroke-width="4" fill="none"/><path d="M420 70q12-34 24 0" stroke="#9ab35e" stroke-width="4" fill="none"/><path d="M462 70q12-34 24 0" stroke="#9ab35e" stroke-width="4" fill="none"/><path d="M504 70q12-34 24 0" stroke="#9ab35e" stroke-width="4" fill="none"/><path d="M546 70q12-34 24 0" stroke="#9ab35e" stroke-width="4" fill="none"/><path d="M588 70q12-34 24 0" stroke="#9ab35e" stroke-width="4" fill="none"/><path d="M630 70q12-34 24 0" stroke="#9ab35e" stroke-width="4" fill="none"/><path d="M672 70q12-34 24 0" stroke="#9ab35e" stroke-width="4" fill="none"/><path d="M714 70q12-34 24 0" stroke="#9ab35e" stroke-width="4" fill="none"/><path d="M756 70q12-34 24 0" stroke="#9ab35e" stroke-width="4" fill="none"/><path d="M798 70q12-34 24 0" stroke="#9ab35e" stroke-width="4" fill="none"/><path d="M840 70q12-34 24 0" stroke="#9ab35e" stroke-width="4" fill="none"/><path d="M882 70q12-34 24 0" stroke="#9ab35e" stroke-width="4" fill="none"/><path d="M924 70q12-34 24 0" stroke="#9ab35e" stroke-width="4" fill="none"/><path d="M966 70q12-34 24 0" stroke="#9ab35e" stroke-width="4" fill="none"/>
+</g>
+</svg>

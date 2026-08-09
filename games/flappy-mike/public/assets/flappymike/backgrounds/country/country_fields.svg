@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="180" viewBox="0 0 960 180">
+  <defs>
+  <filter id="paper" x="-10%" y="-10%" width="120%" height="120%">
+    <feTurbulence baseFrequency=".7" numOctaves="2" seed="7" type="fractalNoise" result="n"/>
+    <feColorMatrix in="n" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 .045 0"/>
+    <feBlend in="SourceGraphic" mode="multiply"/>
+  </filter></defs>
+  <g filter="url(#paper)">
+  <path d="M0 180V101Q130 71 260 108T520 97T780 112T960 91V180Z" fill="#79a759"/>
+  <path d="M0 180v-35q122-42 245 0t245 0t245 0t225 0v35Z" fill="#5f9149"/>
+  <g stroke="#416d3f" stroke-width="3" opacity=".55"><path d="M-40 180l85-73"/><path d="M38 180l85-73"/><path d="M116 180l85-73"/><path d="M194 180l85-73"/><path d="M272 180l85-73"/><path d="M350 180l85-73"/><path d="M428 180l85-73"/><path d="M506 180l85-73"/><path d="M584 180l85-73"/><path d="M662 180l85-73"/><path d="M740 180l85-73"/><path d="M818 180l85-73"/><path d="M896 180l85-73"/><path d="M974 180l85-73"/></g>
+  <g transform="translate(96 73)"><path d="M0 35 52 0l55 35v70H0Z" fill="#a54036" stroke="#5a3832" stroke-width="5"/><path d="M42 105V56h28v49" fill="#f4d6a2"/><rect x="122" y="26" width="29" height="79" rx="12" fill="#c6c3b1" stroke="#5c6765" stroke-width="5"/></g>
+  <g transform="translate(626 101)" fill="#f3eee0" stroke="#313b3b" stroke-width="4"><ellipse cx="27" cy="30" rx="26" ry="16"/><circle cx="55" cy="25" r="11"/><path d="M13 43v22m24-22v22"/></g>
+</g>
+</svg>

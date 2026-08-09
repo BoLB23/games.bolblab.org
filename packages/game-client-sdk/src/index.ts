@@ -146,6 +146,49 @@ export interface SubmitLeaderboardEntryInput {
   metadata?: Record<string, unknown>;
 }
 
+export interface GameSaveMetadata {
+  id: string;
+  slotKey: string;
+  gameVersion: string;
+  schemaVersion: number;
+  revision: number;
+  byteSize: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface GameSave<T> extends GameSaveMetadata {
+  data: T;
+}
+
+export interface PutGameSaveInput<T> {
+  data: T;
+  gameVersion: string;
+  schemaVersion: number;
+  /** Use null only when creating a slot; use the last read revision to update it. */
+  expectedRevision: number | null;
+}
+
+export interface CloudSaveClient {
+  list(gameSlug: string): Promise<GameSaveMetadata[]>;
+  get<T>(gameSlug: string, slotKey: string): Promise<GameSave<T>>;
+  put<T>(gameSlug: string, slotKey: string, input: PutGameSaveInput<T>): Promise<GameSave<T>>;
+  delete(gameSlug: string, slotKey: string): Promise<void>;
+}
+
+export interface LocalSaveStorage {
+  getItem(key: string): string | null;
+  setItem(key: string, value: string): void;
+  removeItem(key: string): void;
+}
+
+export interface GameSaveCache {
+  key(gameSlug: string, slotKey: string): string;
+  read<T>(gameSlug: string, slotKey: string): GameSave<T> | null;
+  write<T>(gameSlug: string, slotKey: string, save: GameSave<T>): boolean;
+  remove(gameSlug: string, slotKey: string): boolean;
+}
+
 export interface GameSessionHandle {
   sessionId: string;
   heartbeat(): Promise<void>;
@@ -155,14 +198,15 @@ export interface GameSessionHandle {
 export interface GameLabSDK {
   getCurrentPlayer(): Promise<PlatformPlayer>;
   startGameSession(gameSlug: string): Promise<GameSessionHandle>;
-  submitLeaderboardEntry(gameSlug: string, input: SubmitLeaderboardEntryInput): Promise<void>;
+  submitLeaderboardEntry(gameSlug: string, input: SubmitLeaderboardEntryInput): Promise<{ entry: LeaderboardEntry; rank: number }>;
+  saves: CloudSaveClient;
 }
 
 export class GamePlatformApiError extends Error {
   constructor(
     message: string,
     public readonly status?: number,
-    public readonly code?: 'unauthorized' | 'not_found' | 'validation' | 'network' | 'timeout' | 'api',
+    public readonly code?: 'unauthorized' | 'not_found' | 'validation' | 'conflict' | 'network' | 'timeout' | 'api',
     public readonly detail?: unknown,
   ) {
     super(message);
@@ -180,11 +224,91 @@ function parseErrorDetail(body: unknown): string | undefined {
   if (typeof body !== 'object' || body === null || !('detail' in body)) return undefined;
   const detail = (body as { detail: unknown }).detail;
   if (typeof detail === 'string') return detail;
+  if (typeof detail === 'object' && detail !== null && 'message' in detail) {
+    const message = (detail as { message: unknown }).message;
+    return typeof message === 'string' ? message : undefined;
+  }
   if (Array.isArray(detail) && detail[0] && typeof detail[0] === 'object' && 'msg' in detail[0]) {
     const message = (detail[0] as { msg: unknown }).msg;
     return typeof message === 'string' ? message : undefined;
   }
   return undefined;
+}
+
+function toGameSaveMetadata(save: {
+  id: string;
+  slot_key: string;
+  game_version: string;
+  schema_version: number;
+  revision: number;
+  byte_size: number;
+  created_at: string;
+  updated_at: string;
+}): GameSaveMetadata {
+  return {
+    id: save.id,
+    slotKey: save.slot_key,
+    gameVersion: save.game_version,
+    schemaVersion: save.schema_version,
+    revision: save.revision,
+    byteSize: save.byte_size,
+    createdAt: save.created_at,
+    updatedAt: save.updated_at,
+  };
+}
+
+function toGameSave<T>(save: {
+  data: T;
+  id: string;
+  slot_key: string;
+  game_version: string;
+  schema_version: number;
+  revision: number;
+  byte_size: number;
+  created_at: string;
+  updated_at: string;
+}): GameSave<T> {
+  return { ...toGameSaveMetadata(save), data: save.data };
+}
+
+/**
+ * Provides opt-in LocalStorage recovery without automatically uploading or
+ * overwriting cloud state. Games should let a player resolve stale copies.
+ */
+export function createGameSaveCache(options: { storage?: LocalSaveStorage; keyPrefix?: string } = {}): GameSaveCache {
+  const storage = options.storage ?? (typeof localStorage === 'undefined' ? undefined : localStorage);
+  const keyPrefix = options.keyPrefix ?? '@game-platform/cloud-save';
+  const key = (gameSlug: string, slotKey: string) => `${keyPrefix}/${encodeURIComponent(gameSlug)}/${encodeURIComponent(slotKey)}`;
+  return {
+    key,
+    read: <T>(gameSlug: string, slotKey: string): GameSave<T> | null => {
+      if (!storage) return null;
+      try {
+        const raw = storage.getItem(key(gameSlug, slotKey));
+        return raw === null ? null : JSON.parse(raw) as GameSave<T>;
+      } catch {
+        return null;
+      }
+    },
+    write: <T>(gameSlug: string, slotKey: string, save: GameSave<T>): boolean => {
+      if (!storage) return false;
+      try {
+        storage.setItem(key(gameSlug, slotKey), JSON.stringify(save));
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    remove: (gameSlug: string, slotKey: string): boolean => {
+      if (!storage) return false;
+      try {
+        storage.removeItem(key(gameSlug, slotKey));
+        return true;
+      } catch {
+        return false;
+      }
+    },
+  };
 }
 
 function toPlatformPlayer(profile: PlayerProfileResponse): PlatformPlayer {
@@ -225,7 +349,8 @@ export function createGamePlatformClient(options: GamePlatformClientOptions): Ga
         const detail = parseErrorDetail(body);
         const code = response.status === 401 ? 'unauthorized'
           : response.status === 404 ? 'not_found'
-          : response.status === 422 ? 'validation' : 'api';
+          : response.status === 422 ? 'validation'
+          : response.status === 409 ? 'conflict' : 'api';
         throw new GamePlatformApiError(detail ?? `Request failed (${response.status})`, response.status, code, body);
       }
       return body as T;
@@ -273,6 +398,40 @@ export function createGamePlatformClient(options: GamePlatformClientOptions): Ga
     },
     submit: (gameSlug: string, input: SubmitLeaderboardEntryInput) => request<{ entry: LeaderboardEntry; rank: number }>(`/games/${encodeURIComponent(gameSlug)}/leaderboards/${encodeURIComponent(input.leaderboardKey)}/entries`, { method: 'POST', body: { value: input.value, metadata: input.metadata } }),
   };
+  const saves: CloudSaveClient = {
+    list: async (gameSlug) => {
+      const response = await request<Array<{
+        id: string; slot_key: string; game_version: string; schema_version: number; revision: number;
+        byte_size: number; created_at: string; updated_at: string;
+      }>>(`/games/${encodeURIComponent(gameSlug)}/saves`);
+      return response.map(toGameSaveMetadata);
+    },
+    get: async <T>(gameSlug: string, slotKey: string): Promise<GameSave<T>> => {
+      const response = await request<{
+        data: T; id: string; slot_key: string; game_version: string; schema_version: number; revision: number;
+        byte_size: number; created_at: string; updated_at: string;
+      }>(`/games/${encodeURIComponent(gameSlug)}/saves/${encodeURIComponent(slotKey)}`);
+      return toGameSave(response);
+    },
+    put: async <T>(gameSlug: string, slotKey: string, input: PutGameSaveInput<T>): Promise<GameSave<T>> => {
+      const response = await request<{
+        data: T; id: string; slot_key: string; game_version: string; schema_version: number; revision: number;
+        byte_size: number; created_at: string; updated_at: string;
+      }>(`/games/${encodeURIComponent(gameSlug)}/saves/${encodeURIComponent(slotKey)}`, {
+        method: 'PUT',
+        body: {
+          data: input.data,
+          game_version: input.gameVersion,
+          schema_version: input.schemaVersion,
+          expected_revision: input.expectedRevision,
+        },
+      });
+      return toGameSave(response);
+    },
+    delete: async (gameSlug: string, slotKey: string): Promise<void> => {
+      await request<void>(`/games/${encodeURIComponent(gameSlug)}/saves/${encodeURIComponent(slotKey)}`, { method: 'DELETE' });
+    },
+  };
 
   const client = {
     auth,
@@ -282,6 +441,7 @@ export function createGamePlatformClient(options: GamePlatformClientOptions): Ga
     clan,
     sessions,
     leaderboards,
+    saves,
     getCurrentPlayer: async () => toPlatformPlayer(await players.getCurrent()),
     startGameSession: async (gameSlug: string): Promise<GameSessionHandle> => {
       const started = await sessions.start(gameSlug);
@@ -293,13 +453,13 @@ export function createGamePlatformClient(options: GamePlatformClientOptions): Ga
       };
     },
     submitLeaderboardEntry: async (gameSlug: string, input: SubmitLeaderboardEntryInput) => {
-      await leaderboards.submit(gameSlug, input);
+      return leaderboards.submit(gameSlug, input);
     },
   };
   return client;
 }
 
-interface GamePlatformClient {
+export interface GamePlatformClient {
   auth: { getCurrentUser: () => Promise<PlatformUser> };
   games: {
     list: () => Promise<PlatformGame[]>;
@@ -327,4 +487,5 @@ interface GamePlatformClient {
     get: (leaderboardKey: string, gameSlug?: string, limit?: number) => Promise<LeaderboardResponse>;
     submit: (gameSlug: string, input: SubmitLeaderboardEntryInput) => Promise<{ entry: LeaderboardEntry; rank: number }>;
   };
+  saves: CloudSaveClient;
 }

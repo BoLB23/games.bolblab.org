@@ -178,7 +178,26 @@ def _upsert_entry(
     entry.submitted_at = timestamp
 
 
-def seed_database(session: Session, sample_game_origin: str) -> None:
+def seed_database(
+    session: Session,
+    sample_game_origin: str,
+    *,
+    flappy_mike_origin: str = "http://localhost:6185",
+    milton_estates_origin: str | None = None,
+    milton_estates_enabled: bool = False,
+    milton_estates_cloud_saves_enabled: bool = False,
+) -> None:
+    """Upsert deterministic development data and optional game integrations.
+
+    Milton Estates is deliberately opt-in.  Keeping both switches in the seed
+    call means a production seed cannot expose a partially integrated game
+    merely because an origin was configured for another purpose.
+    """
+    if milton_estates_enabled and not milton_estates_origin:
+        raise ValueError("MILTON_ESTATES_ORIGIN is required when MILTON_ESTATES_ENABLED is true")
+    if milton_estates_cloud_saves_enabled and not milton_estates_enabled:
+        raise ValueError("MILTON_ESTATES_ENABLED must be true when cloud saves are enabled")
+
     users = {
         "admin": _upsert_development_user(
             session,
@@ -291,28 +310,57 @@ def seed_database(session: Session, sample_game_origin: str) -> None:
         supports_cloud_saves=False,
         supports_leaderboards=True,
         supports_multiplayer=False,
-        is_featured=True,
+        is_featured=False,
         sort_order=10,
+    )
+    flappy_mike = _upsert_game(
+        session,
+        "flappy-mike",
+        title="FlappyMike",
+        short_description="A one-button flight from Philadelphia to Lancaster country.",
+        description=(
+            "Guide the bespectacled, mustachioed FlappyMike through a continuous, procedural run. "
+            "The skyline slowly gives way to the outskirts and then Lancaster-style countryside—"
+            "with your farthest distance saved on the crew leaderboard."
+        ),
+        cover_image_url=None,
+        launch_url=flappy_mike_origin,
+        status="playable",
+        version="0.1.0",
+        minimum_players=1,
+        maximum_players=1,
+        supports_cloud_saves=False,
+        supports_leaderboards=True,
+        supports_multiplayer=False,
+        is_featured=False,
+        sort_order=15,
     )
     milton_estates = _upsert_game(
         session,
         "milton-estates",
         title="Milton Estates",
-        short_description="A future addition to the collection.",
+        short_description=(
+            "An independently hosted game connected to the Game Lab platform."
+            if milton_estates_enabled
+            else "A future addition to the collection."
+        ),
         description=(
-            "Milton Estates is planned for a future integration. Its existing project and local saves remain "
+            "Milton Estates remains independently deployed; this catalog entry enables platform identity and "
+            "play-session integration without changing its existing local saves."
+            if milton_estates_enabled
+            else "Milton Estates is planned for a future integration. Its existing project and local saves remain "
             "untouched while this catalog foundation is established."
         ),
-        cover_image_url=None,
-        launch_url="",
-        status="coming_soon",
-        version="Not integrated",
+        cover_image_url="/assets/milton-estates-cover.png",
+        launch_url=milton_estates_origin if milton_estates_enabled else "",
+        status="playable" if milton_estates_enabled else "coming_soon",
+        version="Platform integration" if milton_estates_enabled else "Not integrated",
         minimum_players=1,
         maximum_players=1,
-        supports_cloud_saves=False,
+        supports_cloud_saves=milton_estates_cloud_saves_enabled,
         supports_leaderboards=False,
         supports_multiplayer=False,
-        is_featured=False,
+        is_featured=True,
         sort_order=20,
     )
 
@@ -335,6 +383,16 @@ def seed_database(session: Session, sample_game_origin: str) -> None:
         unit="seconds",
         sort_direction="asc",
         aggregation="min",
+    )
+    flappy_distance = _upsert_leaderboard(
+        session,
+        game=flappy_mike,
+        key="distance",
+        display_name="Farthest flight",
+        description="Greatest distance traveled in a single FlappyMike run.",
+        unit="points",
+        sort_direction="desc",
+        aggregation="max",
     )
 
     for user, offset, playtime in (
@@ -373,5 +431,11 @@ def seed_database(session: Session, sample_game_origin: str) -> None:
         (users["player"], 15.2),
     ):
         _upsert_entry(session, board=orb_speedrun, user=user, value=value)
+    for user, value in (
+        (users["staff"], 2_119.0),
+        (users["admin"], 1_842.0),
+        (users["player"], 1_482.0),
+    ):
+        _upsert_entry(session, board=flappy_distance, user=user, value=value)
 
     session.commit()

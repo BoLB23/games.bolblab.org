@@ -8,7 +8,7 @@ import type {
   PlayerUpdateInput,
   PlatformClanMember,
 } from '@game-platform/game-client-sdk';
-import { client, devLogin, getDevelopmentUsers } from './api';
+import { authMode, client, devLogin, getDevelopmentUsers, googleLoginUrl } from './api';
 import { useAuth } from './auth';
 import { CapabilityTags, GameArt, GameCard, HAIRCUT_OPTIONS, PLAYER_PALETTES, PlayerAvatar, RoleBadge } from './components';
 
@@ -61,6 +61,10 @@ export function LoginPage() {
   const users = useQuery({ queryKey: ['development-users'], queryFn: getDevelopmentUsers });
   const login = useMutation({ mutationFn: devLogin, onSuccess: async () => { await refetch(); navigate((location.state as { from?: string } | null)?.from ?? '/', { replace: true }); } });
   if (user) return <Navigate to="/" replace />;
+  if (authMode === 'oidc') {
+    const target = (location.state as { from?: string } | null)?.from ?? '/';
+    return <main className="narrow"><span className="kicker">Private arcade</span><h1>Sign in to play</h1><p>Use your Google account to enter the arcade.</p><a className="button primary" href={googleLoginUrl(target)}>Continue with Google</a></main>;
+  }
   return <main className="narrow"><span className="kicker">Local development only</span><h1>Choose a development player</h1><p>This temporary login flow is not production authentication.</p>{users.isLoading && <Loading />}{users.isError && <ErrorState>Development users are unavailable. Run the database migration and seed commands.</ErrorState>}<div className="user-list">{users.data?.map((candidate) => <button key={candidate.id} className="user-choice" onClick={() => login.mutate(candidate.id)} disabled={login.isPending}><strong>{candidate.display_name}</strong><span>{candidate.email} · {candidate.role}</span></button>)}</div>{login.isError && <ErrorState>Login failed. Please select a seeded development user.</ErrorState>}</main>;
 }
 
@@ -92,7 +96,7 @@ export function GameDetailPage() {
   const currentGame = game.data;
   if (!currentGame) return <ErrorState>This game is unavailable.</ErrorState>;
   const playable = currentGame.status === 'playable';
-  return <main className="detail"><Link to="/games">← Back to collection</Link><div className="detail-grid"><GameArt game={currentGame} /><div><span className={`status ${currentGame.status}`}>{currentGame.status.replace('_', ' ')}</span><h1>{currentGame.title}</h1><p className="lede">{currentGame.description}</p><dl><div><dt>Version</dt><dd>{currentGame.version}</dd></div><div><dt>Players</dt><dd>{currentGame.minimum_players}–{currentGame.maximum_players}</dd></div></dl><CapabilityTags game={currentGame} />{playable ? <a className="button primary" href={currentGame.launch_url}>Launch game</a> : <p className="notice">This game is being prepared for the collection. Its existing project is not integrated yet.</p>}</div></div>{playable && currentGame.supports_leaderboards && <CompactLeaderboardPreview gameSlug={currentGame.slug} />}</main>;
+  return <main className="detail"><Link to="/games">← Back to collection</Link><div className="detail-grid"><GameArt game={currentGame} /><div><span className={`status ${currentGame.status}`}>{currentGame.status.replace('_', ' ')}</span><h1>{currentGame.title}</h1><p className="lede">{currentGame.description}</p><dl><div><dt>Version</dt><dd>{currentGame.version}</dd></div><div><dt>Players</dt><dd>{currentGame.minimum_players}–{currentGame.maximum_players}</dd></div></dl><CapabilityTags game={currentGame} />{playable ? <a className="button primary" href={currentGame.launch_url} target="_blank" rel="noopener noreferrer">Launch game</a> : <p className="notice">This game is being prepared for the collection. Its existing project is not integrated yet.</p>}</div></div>{playable && currentGame.supports_leaderboards && <CompactLeaderboardPreview gameSlug={currentGame.slug} />}</main>;
 }
 
 type PlayerDraft = Pick<PlayerProfileResponse, 'nickname' | 'haircut' | 'hair_color' | 'tshirt_color' | 'pants_color' | 'shoe_color'>;

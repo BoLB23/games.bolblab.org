@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="512" viewBox="0 0 128 512">
+  <defs>
+  <filter id="paper" x="-10%" y="-10%" width="120%" height="120%">
+    <feTurbulence baseFrequency=".7" numOctaves="2" seed="7" type="fractalNoise" result="n"/>
+    <feColorMatrix in="n" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 .045 0"/>
+    <feBlend in="SourceGraphic" mode="multiply"/>
+  </filter></defs>
+  <g filter="url(#paper)">
+  <rect x="5" y="0" width="118" height="512" rx="10" fill="#5e8146" stroke="#342f2d" stroke-width="8"/>
+  <g fill="#567f3e" stroke="#355331" stroke-width="4"><path d="M22 36v405m0-180q-31-38 0-62m0 91q30-37 0-64"/><path d="M43 36v405m0-180q-31-38 0-62m0 91q30-37 0-64"/><path d="M64 36v405m0-180q-31-38 0-62m0 91q30-37 0-64"/><path d="M85 36v405m0-180q-31-38 0-62m0 91q30-37 0-64"/><path d="M106 36v405m0-180q-31-38 0-62m0 91q30-37 0-64"/></g><g stroke="#7a5938" stroke-width="16"><path d="M6 336h116M6 405h116"/><path d="M29 300v165M99 300v165"/></g>
+  <path d="M3 467h122v45H3Z" fill="#a67b43" stroke="#342f2d" stroke-width="8"/>
+  <path d="M14 477h100" stroke="#fff4cf" stroke-width="5" opacity=".45"/>
+</g>
+</svg>
