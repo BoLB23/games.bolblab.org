@@ -20,6 +20,13 @@ AGGREGATION_ALIASES = {
     "cumulative_sum": "sum",
 }
 SORT_DIRECTION_ALIASES = {"ascending": "asc", "descending": "desc"}
+MILTON_ESTATES_MILLISECOND_BOARDS = {
+    "milton-estates.mushroom-hunt.fastest-completion-ms",
+    "milton-estates.chase-ryan.fastest-catch-ms",
+    "milton-estates.mickey-drag-race.fastest-win-ms",
+    "milton-estates.bad-trip.longest-survival-ms",
+}
+MICKEY_DRAG_RACE_BOARD = "milton-estates.mickey-drag-race.fastest-win-ms"
 
 
 class LeaderboardError(Exception):
@@ -161,6 +168,15 @@ def _validate_metadata(metadata: dict[str, Any] | None, settings: Settings) -> N
         raise LeaderboardError("Leaderboard metadata is too large", status_code=422)
 
 
+def _validate_board_value(board: LeaderboardDefinition, value: float) -> None:
+    if board.game.slug != "milton-estates" or board.key not in MILTON_ESTATES_MILLISECOND_BOARDS:
+        return
+    if value <= 0 or not value.is_integer():
+        raise LeaderboardError("Milton Estates leaderboard values must be positive integer milliseconds", status_code=422)
+    if board.key == MICKEY_DRAG_RACE_BOARD and value > 60_000:
+        raise LeaderboardError("Mickey Drag Race results must be between 1 and 60000 milliseconds", status_code=422)
+
+
 def submit_leaderboard_entry(
     session: Session,
     *,
@@ -187,6 +203,7 @@ def submit_leaderboard_entry(
     if board is None:
         raise LeaderboardError("Leaderboard not found for this game", status_code=404)
     board.game = game
+    _validate_board_value(board, value)
     existing = session.scalar(
         select(LeaderboardEntry).where(
             LeaderboardEntry.leaderboard_id == board.id,

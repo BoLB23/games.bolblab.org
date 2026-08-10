@@ -13,6 +13,29 @@ from app.models.leaderboard import LeaderboardDefinition, LeaderboardEntry
 from app.models.player import PlayerProfile
 from app.models.user import ClanRole, ExternalIdentity, User
 
+MILTON_ESTATES_LEADERBOARDS = (
+    (
+        "milton-estates.mushroom-hunt.fastest-completion-ms",
+        "Mushroom Hunt: fastest completion",
+        "Fastest Mushroom Hunt completion, from acceptance through Andrew's final handoff.",
+    ),
+    (
+        "milton-estates.chase-ryan.fastest-catch-ms",
+        "Chase Ryan: fastest catch",
+        "Fastest successful catch after Ryan begins the Reidenbaugh chase.",
+    ),
+    (
+        "milton-estates.mickey-drag-race.fastest-win-ms",
+        "Mickey Drag Race: fastest win",
+        "Fastest winning Mickey drag-race run.",
+    ),
+    (
+        "milton-estates.bad-trip.longest-survival-ms",
+        "Bad Trip: longest survival",
+        "Longest completed Don Rossi survival run (submitted as an inverse-encoded duration).",
+    ),
+)
+
 
 def _upsert_development_user(
     session: Session,
@@ -140,6 +163,20 @@ def _upsert_leaderboard(
         setattr(board, field, value)
     session.flush()
     return board
+
+
+def _upsert_milton_estates_leaderboards(session: Session, *, game: Game) -> None:
+    for key, display_name, description in MILTON_ESTATES_LEADERBOARDS:
+        _upsert_leaderboard(
+            session,
+            game=game,
+            key=key,
+            display_name=display_name,
+            description=description,
+            unit="milliseconds",
+            sort_direction="asc",
+            aggregation="min",
+        )
 
 
 def _upsert_session(
@@ -272,7 +309,7 @@ def _seed_catalog(
         minimum_players=1,
         maximum_players=1,
         supports_cloud_saves=milton_estates_cloud_saves_enabled,
-        supports_leaderboards=False,
+        supports_leaderboards=milton_estates_enabled,
         supports_multiplayer=False,
         is_featured=True,
         sort_order=20,
@@ -292,6 +329,8 @@ def _seed_catalog(
         description="Greatest distance traveled in a single FlappyMike run.", unit="points",
         sort_direction="desc", aggregation="max",
     )
+    if milton_estates_enabled:
+        _upsert_milton_estates_leaderboards(session, game=milton_estates)
     return sample_game, flappy_mike, milton_estates
 
 
@@ -484,7 +523,7 @@ def seed_database(
         minimum_players=1,
         maximum_players=1,
         supports_cloud_saves=milton_estates_cloud_saves_enabled,
-        supports_leaderboards=False,
+        supports_leaderboards=milton_estates_enabled,
         supports_multiplayer=False,
         is_featured=True,
         sort_order=20,
@@ -520,6 +559,8 @@ def seed_database(
         sort_direction="desc",
         aggregation="max",
     )
+    if milton_estates_enabled:
+        _upsert_milton_estates_leaderboards(session, game=milton_estates)
 
     for user, offset, playtime in (
         (users["admin"], 86_400 * 4, 4_620.0),

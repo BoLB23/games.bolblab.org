@@ -26,7 +26,8 @@ SAMPLE_GAME_ORIGIN=http://localhost:6184
 GAME_CORS_ALLOWED_ORIGINS=http://localhost:5183
 MILTON_ESTATES_ORIGIN=http://localhost:5183
 MILTON_ESTATES_ENABLED=true
-VITE_API_BASE_URL=http://localhost:8001/api/v1
+MILTON_ESTATES_CLOUD_SAVES_ENABLED=true
+VITE_GAME_PLATFORM_API_BASE_URL=http://localhost:8001/api/v1
 ```
 
 Run the migrations and idempotent seed after changing the Milton settings:
@@ -64,13 +65,22 @@ SESSION_COOKIE_SECURE=true
 CATALOG_ORIGIN=https://games.bolblab.org
 MILTON_ESTATES_ORIGIN=https://games.bolblab.org
 MILTON_ESTATES_LAUNCH_URL=https://games.bolblab.org/games/milton-estates/
-MILTON_ESTATES_ENABLED=false
+MILTON_ESTATES_ENABLED=true
+MILTON_ESTATES_CLOUD_SAVES_ENABLED=true
 ```
 
-Set `MILTON_ESTATES_ENABLED=true` only after the Milton URL, SDK smoke test,
-and first leaderboard contract have been verified. `SameSite=Lax` is suitable
-for this topology because Milton shares the catalog origin; keep the cookie
-host-only and do not broaden it to `.bolblab.org`.
+These settings register Milton Estates as playable with cloud-save and
+leaderboard capability enabled. They do not migrate, read, or write Milton's
+browser-local `GameStore` save. `SameSite=Lax` is suitable for this topology
+because Milton shares the catalog origin; keep the cookie host-only and do not
+broaden it to `.bolblab.org`.
+
+The production seed creates these ascending, best-time boards:
+
+- `milton-estates.mushroom-hunt.fastest-completion-ms`
+- `milton-estates.chase-ryan.fastest-catch-ms`
+- `milton-estates.mickey-drag-race.fastest-win-ms` (1–60,000 ms)
+- `milton-estates.bad-trip.longest-survival-ms` (inverse-encoded duration)
 
 The production catalog image already uses the relative API base URL
 `/api/v1`, which keeps catalog-to-API calls same-origin. Its ingress must
@@ -88,8 +98,8 @@ work before enabling this configuration outside development.
    verify heartbeats/end events are accepted.
 4. Confirm the Sample Game on `http://localhost:6184` still loads and submits
    its existing score.
-5. Once the Milton game supplies its explicit leaderboard contract, enable
-   the corresponding platform definition and verify a score appears in the
-   catalog leaderboard.
+5. Complete each Milton event and verify its score appears in the catalog
+   leaderboard. Mickey accepts winning runs from 1–60,000 ms; the Bad Trip
+   score must use the game's inverse encoding.
 6. With no platform session, confirm Milton remains playable offline and
    gives a clear sign-in hint rather than failing gameplay or local saves.

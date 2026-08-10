@@ -189,9 +189,25 @@ def test_seed_can_explicitly_enable_milton_estates_for_local_integration(client:
     assert game["status"] == "playable"
     assert game["version"] == "Platform integration"
     assert game["supports_cloud_saves"] is False
-    assert game["supports_leaderboards"] is False
+    assert game["supports_leaderboards"] is True
     assert game["supports_multiplayer"] is False
     assert client.post("/api/v1/games/milton-estates/sessions").status_code == 200
+    boards = client.get("/api/v1/games/milton-estates/leaderboards")
+    assert boards.status_code == 200
+    assert [(board["key"], board["sort_direction"], board["aggregation"]) for board in boards.json()] == [
+        ("milton-estates.bad-trip.longest-survival-ms", "asc", "min"),
+        ("milton-estates.chase-ryan.fastest-catch-ms", "asc", "min"),
+        ("milton-estates.mickey-drag-race.fastest-win-ms", "asc", "min"),
+        ("milton-estates.mushroom-hunt.fastest-completion-ms", "asc", "min"),
+    ]
+    assert client.post(
+        "/api/v1/games/milton-estates/leaderboards/milton-estates.mickey-drag-race.fastest-win-ms/entries",
+        json={"value": 42_000},
+    ).status_code == 200
+    assert client.post(
+        "/api/v1/games/milton-estates/leaderboards/milton-estates.mickey-drag-race.fastest-win-ms/entries",
+        json={"value": 60_001},
+    ).status_code == 422
 
 
 def test_enabling_milton_estates_without_an_origin_is_rejected(client: TestClient) -> None:
@@ -233,6 +249,7 @@ def test_production_seed_upserts_catalog_without_development_users(tmp_path: Pat
             milton_estates_origin="https://games.example.test",
             milton_estates_launch_url="https://games.example.test/games/milton-estates/",
             milton_estates_enabled=True,
+            milton_estates_cloud_saves_enabled=True,
             include_development_data=False,
         )
         flappy = session.scalar(select(Game).where(Game.slug == "flappy-mike"))
@@ -241,6 +258,10 @@ def test_production_seed_upserts_catalog_without_development_users(tmp_path: Pat
         assert sample.status == "hidden"
         assert flappy is not None and flappy.cover_image_url == "/assets/flappy-mike-cover.png"
         assert milton is not None and milton.launch_url == "https://games.example.test/games/milton-estates/"
+        assert milton.status == "playable"
+        assert milton.supports_cloud_saves is True
+        assert milton.supports_leaderboards is True
+        assert len(milton.leaderboards) == 4
     Base.metadata.drop_all(db_session.engine)
 
 
