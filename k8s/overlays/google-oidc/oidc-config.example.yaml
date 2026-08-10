@@ -14,3 +14,7 @@ data:
   SAMPLE_GAME_LAUNCH_URL: https://games.bolblab.org/games/sample-game/
   FLAPPY_MIKE_ORIGIN: https://games.bolblab.org
   FLAPPY_MIKE_LAUNCH_URL: https://games.bolblab.org/games/flappy-mike/
+  MILTON_ESTATES_ORIGIN: https://games.bolblab.org
+  MILTON_ESTATES_LAUNCH_URL: https://games.bolblab.org/games/milton-estates/
+  MILTON_ESTATES_ENABLED: "true"
+  MILTON_ESTATES_CLOUD_SAVES_ENABLED: "false"

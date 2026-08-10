@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from pathlib import Path
 from typing import cast
 
 import pytest
@@ -10,6 +11,7 @@ from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError
 
 import app.db.session as db_session
+from app.db.base import Base
 from app.models.game import Game
 from app.models.user import ExternalIdentity
 from app.services.seed import seed_database
@@ -212,6 +214,28 @@ def test_seed_is_idempotent(client: TestClient) -> None:
         seed_database(session, "http://localhost:5174")
         assert session.execute(text("SELECT count(*) FROM users")).scalar_one() == 5
         assert session.execute(text("SELECT count(*) FROM games")).scalar_one() == 3
+
+
+def test_production_seed_upserts_catalog_without_development_users(tmp_path: Path) -> None:
+    database_path = tmp_path / "production-catalog.db"
+    db_session.configure_database(f"sqlite:///{database_path}")
+    Base.metadata.create_all(db_session.engine)
+    with db_session.SessionLocal() as session:
+        seed_database(
+            session,
+            "https://games.example.test/games/sample-game/",
+            flappy_mike_origin="https://games.example.test/games/flappy-mike/",
+            milton_estates_origin="https://games.example.test",
+            milton_estates_launch_url="https://games.example.test/games/milton-estates/",
+            milton_estates_enabled=True,
+            include_development_data=False,
+        )
+        flappy = session.scalar(select(Game).where(Game.slug == "flappy-mike"))
+        milton = session.scalar(select(Game).where(Game.slug == "milton-estates"))
+        assert session.execute(text("SELECT count(*) FROM users")).scalar_one() == 0
+        assert flappy is not None and flappy.cover_image_url == "/assets/flappy-mike-cover.png"
+        assert milton is not None and milton.launch_url == "https://games.example.test/games/milton-estates/"
+    Base.metadata.drop_all(db_session.engine)
 
 
 def test_sqlite_foreign_keys_are_enforced(client: TestClient) -> None:

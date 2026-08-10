@@ -12,7 +12,7 @@ spec:
           command:
             - /bin/sh
             - -ec
-            - /app/.venv/bin/alembic upgrade head
+            - /app/.venv/bin/alembic upgrade head && /app/.venv/bin/python -m app.cli seed --production
           env:
             - name: APP_ENV
               value: null
@@ -94,6 +94,26 @@ spec:
                 configMapKeyRef:
                   name: games-oidc-config
                   key: FLAPPY_MIKE_LAUNCH_URL
+            - name: MILTON_ESTATES_ORIGIN
+              valueFrom:
+                configMapKeyRef:
+                  name: games-oidc-config
+                  key: MILTON_ESTATES_ORIGIN
+            - name: MILTON_ESTATES_LAUNCH_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: games-oidc-config
+                  key: MILTON_ESTATES_LAUNCH_URL
+            - name: MILTON_ESTATES_ENABLED
+              valueFrom:
+                configMapKeyRef:
+                  name: games-oidc-config
+                  key: MILTON_ESTATES_ENABLED
+            - name: MILTON_ESTATES_CLOUD_SAVES_ENABLED
+              valueFrom:
+                configMapKeyRef:
+                  name: games-oidc-config
+                  key: MILTON_ESTATES_CLOUD_SAVES_ENABLED
       containers:
         - name: api
           env:
@@ -177,3 +197,23 @@ spec:
                 configMapKeyRef:
                   name: games-oidc-config
                   key: FLAPPY_MIKE_LAUNCH_URL
+            - name: MILTON_ESTATES_ORIGIN
+              valueFrom:
+                configMapKeyRef:
+                  name: games-oidc-config
+                  key: MILTON_ESTATES_ORIGIN
+            - name: MILTON_ESTATES_LAUNCH_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: games-oidc-config
+                  key: MILTON_ESTATES_LAUNCH_URL
+            - name: MILTON_ESTATES_ENABLED
+              valueFrom:
+                configMapKeyRef:
+                  name: games-oidc-config
+                  key: MILTON_ESTATES_ENABLED
+            - name: MILTON_ESTATES_CLOUD_SAVES_ENABLED
+              valueFrom:
+                configMapKeyRef:
+                  name: games-oidc-config
+                  key: MILTON_ESTATES_CLOUD_SAVES_ENABLED

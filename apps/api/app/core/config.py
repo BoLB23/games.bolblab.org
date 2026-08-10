@@ -40,6 +40,7 @@ class Settings(BaseSettings):
     flappy_mike_launch_url: str | None = None
     game_cors_allowed_origins: str = ""
     milton_estates_origin: str | None = None
+    milton_estates_launch_url: str | None = None
     milton_estates_enabled: bool = False
     milton_estates_cloud_saves_enabled: bool = False
     presence_window_seconds: int = Field(default=120, ge=30, le=3600)
@@ -96,7 +97,7 @@ class Settings(BaseSettings):
     def validate_milton_estates_origin(cls, value: str | None) -> str | None:
         return cls._validate_origin(value) if value else None
 
-    @field_validator("sample_game_launch_url", "flappy_mike_launch_url")
+    @field_validator("sample_game_launch_url", "flappy_mike_launch_url", "milton_estates_launch_url")
     @classmethod
     def validate_game_launch_url(cls, value: str | None) -> str | None:
         if value is None:

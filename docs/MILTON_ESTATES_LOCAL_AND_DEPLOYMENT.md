@@ -53,7 +53,7 @@ database you want to retain.
 
 The catalog and API share `https://games.bolblab.org`: the catalog is served
 from `/` and the API is served from `/api/v1`. Milton is served independently
-from `https://milton.games.bolblab.org` and calls the platform API at
+from `https://games.bolblab.org/games/milton-estates/` and calls the platform API at
 `https://games.bolblab.org/api/v1`.
 
 The production API configuration must include:
@@ -62,17 +62,15 @@ The production API configuration must include:
 APP_ENV=production
 SESSION_COOKIE_SECURE=true
 CATALOG_ORIGIN=https://games.bolblab.org
-GAME_CORS_ALLOWED_ORIGINS=https://milton.games.bolblab.org
-MILTON_ESTATES_ORIGIN=https://milton.games.bolblab.org
+MILTON_ESTATES_ORIGIN=https://games.bolblab.org
+MILTON_ESTATES_LAUNCH_URL=https://games.bolblab.org/games/milton-estates/
 MILTON_ESTATES_ENABLED=false
 ```
 
 Set `MILTON_ESTATES_ENABLED=true` only after the Milton URL, SDK smoke test,
 and first leaderboard contract have been verified. `SameSite=Lax` is suitable
-for this topology because both HTTPS origins are same-site; keep the cookie
-host-only and do not broaden it to `.bolblab.org`. The browser sends the cookie
-to `games.bolblab.org` when Milton makes an API request, while Milton never
-receives the cookie value.
+for this topology because Milton shares the catalog origin; keep the cookie
+host-only and do not broaden it to `.bolblab.org`.
 
 The production catalog image already uses the relative API base URL
 `/api/v1`, which keeps catalog-to-API calls same-origin. Its ingress must

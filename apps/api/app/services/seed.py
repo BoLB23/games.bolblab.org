@@ -180,14 +180,108 @@ def _upsert_entry(
     entry.submitted_at = timestamp
 
 
+def _seed_catalog(
+    session: Session,
+    *,
+    sample_game_origin: str,
+    flappy_mike_origin: str,
+    milton_estates_origin: str | None,
+    milton_estates_launch_url: str | None,
+    milton_estates_enabled: bool,
+    milton_estates_cloud_saves_enabled: bool,
+) -> tuple[Game, Game, Game]:
+    sample_game = _upsert_game(
+        session,
+        "sample-game",
+        title="Sample Game",
+        short_description="A tiny independent game that proves the platform connection.",
+        description=(
+            "Click the glowing orb to increase an in-memory score. This deliberately small game demonstrates "
+            "that browser games can stay independent while sharing the platform client SDK."
+        ),
+        cover_image_url=None,
+        launch_url=sample_game_origin,
+        status="playable",
+        version="0.1.0",
+        minimum_players=1,
+        maximum_players=1,
+        supports_cloud_saves=False,
+        supports_leaderboards=True,
+        supports_multiplayer=False,
+        is_featured=False,
+        sort_order=10,
+    )
+    flappy_mike = _upsert_game(
+        session,
+        "flappy-mike",
+        title="FlappyMike",
+        short_description="Mike is stuck in Philadelphia—help him escape to his new home in Lancaster County.",
+        description=(
+            "Mike has been stuck in Philadelphia for far too long. Guide the bespectacled, mustachioed FlappyMike "
+            "through the city, escape toward the outskirts, and help him reach his new home in Lancaster County—"
+            "with your farthest distance saved on the crew leaderboard."
+        ),
+        cover_image_url="/assets/flappy-mike-cover.png",
+        launch_url=flappy_mike_origin,
+        status="playable",
+        version="0.1.0",
+        minimum_players=1,
+        maximum_players=1,
+        supports_cloud_saves=False,
+        supports_leaderboards=True,
+        supports_multiplayer=False,
+        is_featured=False,
+        sort_order=15,
+    )
+    milton_estates = _upsert_game(
+        session,
+        "milton-estates",
+        title="Milton Estates",
+        short_description="Welcome to Milton Estates! Meet your new friends and see what quests are in store.",
+        description=(
+            "Welcome to Milton Estates! Meet your new friends, settle into the neighborhood, and see what quests "
+            "are in store."
+        ),
+        cover_image_url="/assets/milton-estates-cover.png",
+        launch_url=(milton_estates_launch_url or milton_estates_origin or "") if milton_estates_enabled else "",
+        status="playable" if milton_estates_enabled else "coming_soon",
+        version="Platform integration" if milton_estates_enabled else "Not integrated",
+        minimum_players=1,
+        maximum_players=1,
+        supports_cloud_saves=milton_estates_cloud_saves_enabled,
+        supports_leaderboards=False,
+        supports_multiplayer=False,
+        is_featured=True,
+        sort_order=20,
+    )
+    _upsert_leaderboard(
+        session, game=sample_game, key="orb-touches", display_name="Orb touches",
+        description="Highest orb-touch total in a single sample-game run.", unit="points",
+        sort_direction="desc", aggregation="max",
+    )
+    _upsert_leaderboard(
+        session, game=sample_game, key="orb-speedrun", display_name="Orb speedrun",
+        description="Fastest recorded time to finish a sample-game run.", unit="seconds",
+        sort_direction="asc", aggregation="min",
+    )
+    _upsert_leaderboard(
+        session, game=flappy_mike, key="distance", display_name="Farthest flight",
+        description="Greatest distance traveled in a single FlappyMike run.", unit="points",
+        sort_direction="desc", aggregation="max",
+    )
+    return sample_game, flappy_mike, milton_estates
+
+
 def seed_database(
     session: Session,
     sample_game_origin: str,
     *,
     flappy_mike_origin: str = "http://localhost:6185",
     milton_estates_origin: str | None = None,
+    milton_estates_launch_url: str | None = None,
     milton_estates_enabled: bool = False,
     milton_estates_cloud_saves_enabled: bool = False,
+    include_development_data: bool = True,
 ) -> None:
     """Upsert deterministic development data and optional game integrations.
 
@@ -199,6 +293,18 @@ def seed_database(
         raise ValueError("MILTON_ESTATES_ORIGIN is required when MILTON_ESTATES_ENABLED is true")
     if milton_estates_cloud_saves_enabled and not milton_estates_enabled:
         raise ValueError("MILTON_ESTATES_ENABLED must be true when cloud saves are enabled")
+    if not include_development_data:
+        _seed_catalog(
+            session,
+            sample_game_origin=sample_game_origin,
+            flappy_mike_origin=flappy_mike_origin,
+            milton_estates_origin=milton_estates_origin,
+            milton_estates_launch_url=milton_estates_launch_url,
+            milton_estates_enabled=milton_estates_enabled,
+            milton_estates_cloud_saves_enabled=milton_estates_cloud_saves_enabled,
+        )
+        session.commit()
+        return
 
     users = {
         "admin": _upsert_development_user(
@@ -347,7 +453,7 @@ def seed_database(
             "are in store."
         ),
         cover_image_url="/assets/milton-estates-cover.png",
-        launch_url=milton_estates_origin if milton_estates_enabled else "",
+        launch_url=(milton_estates_launch_url or milton_estates_origin or "") if milton_estates_enabled else "",
         status="playable" if milton_estates_enabled else "coming_soon",
         version="Platform integration" if milton_estates_enabled else "Not integrated",
         minimum_players=1,
