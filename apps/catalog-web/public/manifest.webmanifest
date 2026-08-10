@@ -1,0 +1,17 @@
+{
+  "name": "Underground Heat Studios",
+  "short_name": "Underground Heat",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#12100e",
+  "theme_color": "#12100e",
+  "description": "The private arcade for Underground Heat Studios.",
+  "icons": [
+    {
+      "src": "/assets/pwa-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

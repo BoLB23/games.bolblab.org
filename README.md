@@ -91,11 +91,13 @@ GitHub Container Registry convention used by the homelab. Deploy the matching
 current commit's short SHA (the script chooses this by default):
 
 ```bash
-scripts/deploy --tag <image-tag>
+scripts/deploy --context <kubectl-context> --tag <image-tag>
 ```
 
-Use `--context <kubectl-context>` when needed. Use `--image-repo <repository>`
-only when overriding the default `ghcr.io/bolb23/games.bolblab.org` image base.
+Production OIDC mode is the default and requires an explicit `--context`.
+Use `--development` only for an intentional non-OIDC deployment. Use
+`--image-repo <repository>` only when overriding the default
+`ghcr.io/bolb23/games.bolblab.org` image base.
 The app is served at `http://games.bolblab.org`. If the existing
 `games-bolblab-org-tls` secret is present, the deploy script uses it;
 otherwise it leaves the ingress HTTP-only.

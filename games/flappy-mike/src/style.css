@@ -1,9 +1,11 @@
 :root { color: #edf4e8; background: #6e9ec2; font-family: Arial, sans-serif; }
 * { box-sizing: border-box; }
 html, body { width: 100%; height: 100%; min-height: 100%; margin: 0; }
-body { min-height: 100svh; height: 100svh; display: block; overflow: hidden; background: #6e9ec2; }
-#app { position: relative; width: 100%; height: 100svh; min-height: 100svh; display: grid; place-items: center; overflow: hidden; background: #6e9ec2; }
-canvas { display: block; outline: none; touch-action: none; }
+body { min-height: 100dvh; height: 100dvh; display: block; overflow: hidden; background: #6e9ec2; }
+#app { position: relative; width: 100%; height: 100dvh; min-height: 100dvh; display: grid; place-items: center; overflow: hidden; background: #6e9ec2; }
+canvas { display: block; max-width: 100%; max-height: 100%; outline: none; touch-action: none; }
+#exit-game { position: absolute; z-index: 50; top: max(.75rem, env(safe-area-inset-top)); right: max(.75rem, env(safe-area-inset-right)); padding: .55rem .75rem; color: #fff5bd; background: rgb(24 55 69 / .82); border: 1px solid rgb(255 245 189 / .6); font: 700 .72rem Arial, sans-serif; text-decoration: none; text-transform: uppercase; letter-spacing: .04em; }
+#exit-game:hover, #exit-game:focus-visible { background: #183745; }
 #orientation-notice { display: none; position: absolute; z-index: 10; inset: 0; place-content: center; justify-items: center; gap: 0.5rem; padding: 2rem; text-align: center; color: #fff5bd; background: rgb(24 55 69 / 0.88); font-size: clamp(1rem, 4vw, 1.35rem); pointer-events: none; }
 #orientation-notice strong { font-family: Arial Black, Arial, sans-serif; text-transform: uppercase; letter-spacing: 0.04em; }
 #orientation-notice > span:last-child { color: #ffffff; font-size: 0.9em; }

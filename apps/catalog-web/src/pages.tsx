@@ -40,11 +40,22 @@ export function formatRelativeTime(timestamp: string | null, online = false): st
   return date.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
 }
 
+// Renders a score's "achieved at" moment in the viewer's own browser time zone (never UTC),
+// showing a clock time for today and a short date otherwise.
+export function formatLeaderboardTimestamp(date: Date): string {
+  const sameDay = date.toDateString() === new Date().toDateString();
+  return sameDay
+    ? date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+    : date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+}
+
 export function formatLeaderboardValue(value: number, unit: string): string {
-  if (unit === 'seconds') {
-    if (value < 60) return `${value.toFixed(2)}s`;
-    const minutes = Math.floor(value / 60);
-    return `${minutes}m ${(value % 60).toFixed(2).padStart(5, '0')}s`;
+  // Always render timed boards in seconds, even if the source data is stored in milliseconds.
+  if (unit === 'seconds' || unit === 'milliseconds') {
+    const seconds = unit === 'milliseconds' ? value / 1000 : value;
+    if (seconds < 60) return `${seconds.toFixed(2)}s`;
+    const minutes = Math.floor(seconds / 60);
+    return `${minutes}m ${(seconds % 60).toFixed(2).padStart(5, '0')}s`;
   }
   const suffix = unit === 'points' || unit === 'items' || unit === 'wins' ? '' : ` ${unit}`;
   return `${value.toLocaleString()}${suffix}`;
@@ -175,7 +186,7 @@ export function ClanPage() {
 
 function LeaderboardRow({ entry, unit, current }: { entry: LeaderboardEntry; unit: string; current: boolean }) {
   const achieved = parsePlatformDate(entry.achieved_at);
-  return <li className={`leaderboard-row rank-${Math.min(entry.rank, 3)} ${current ? 'is-current' : ''}`}><span className="rank-number">{String(entry.rank).padStart(2, '0')}</span><PlayerAvatar appearance={entry.appearance} size="small" label={`${entry.nickname}, rank ${entry.rank}`} /><div className="leaderboard-player"><strong>{entry.nickname}</strong><span>{entry.display_name}</span></div><RoleBadge role={entry.role} /><strong className="leaderboard-value">{formatLeaderboardValue(entry.value, unit)}</strong><time dateTime={entry.achieved_at} title={achieved.toLocaleString()}>{formatRelativeTime(entry.achieved_at)}</time></li>;
+  return <li className={`leaderboard-row rank-${Math.min(entry.rank, 3)} ${current ? 'is-current' : ''}`}><span className="rank-number">{String(entry.rank).padStart(2, '0')}</span><PlayerAvatar appearance={entry.appearance} size="small" label={`${entry.nickname}, rank ${entry.rank}`} /><div className="leaderboard-player"><strong>{entry.nickname}</strong><span>{entry.display_name}</span></div><RoleBadge role={entry.role} /><strong className="leaderboard-value">{formatLeaderboardValue(entry.value, unit)}</strong><time dateTime={entry.achieved_at} title={`${formatRelativeTime(entry.achieved_at)} · ${achieved.toLocaleString()}`}>{formatLeaderboardTimestamp(achieved)}</time></li>;
 }
 
 export function LeaderboardsPage() {

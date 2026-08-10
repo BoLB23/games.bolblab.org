@@ -7,6 +7,12 @@ import { Layout } from './App';
 import { ClanPage, GamesPage, GameDetailPage, HomePage, LeaderboardsPage, LoginPage, MyPlayerPage, NotFoundPage, ProfilePage, RequireAuth } from './pages';
 import './styles.css';
 
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    void navigator.serviceWorker.register('/sw.js');
+  });
+}
+
 const router = createBrowserRouter([{ element: <Layout />, children: [
   { path: '/', element: <RequireAuth><HomePage /></RequireAuth> },
   { path: '/login', element: <LoginPage /> },

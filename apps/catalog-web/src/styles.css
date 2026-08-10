@@ -9,13 +9,18 @@ a { color: inherit; }
 button, .button { font: inherit; cursor: pointer; border: 0; border-radius: 0; padding: .78rem 1.1rem; background: #f05a28; color: #17100c; font-weight: 800; text-decoration: none; display: inline-block; transition: transform .2s, background .2s; }
 button:hover:not(:disabled), .button:hover { background: #ffbd3f; transform: translateY(-2px); }
 button:disabled { cursor: not-allowed; background: #4a4942; color: #a5a098; }
-header { height: 86px; padding: 0 clamp(1.25rem, 5vw, 5rem); display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f5efe41c; position: relative; z-index: 1; }
+header { min-height: 86px; padding: max(1rem, env(safe-area-inset-top)) clamp(1.25rem, 5vw, 5rem) 1rem; display: flex; justify-content: space-between; align-items: center; gap: 1rem; border-bottom: 1px solid #f5efe41c; position: relative; z-index: 1; }
 .brand { display: flex; align-items: center; gap: .7rem; text-decoration: none; text-transform: uppercase; font: 700 .78rem 'DM Mono', monospace; letter-spacing: .04em; line-height: 1.2; }
 .brand em { color: #f05a28; font-style: normal; }
 .brand-mark { display: grid; place-items: center; width: 2.25rem; height: 2.25rem; color: #12100e; background: #ffbd3f; font: 800 1rem 'Barlow Condensed', sans-serif; letter-spacing: -.04em; transform: rotate(-6deg); }
 nav { display: flex; gap: 1.4rem; font: 500 .72rem 'DM Mono', monospace; text-transform: uppercase; letter-spacing: .09em; }
 nav a { color: #aba49a; text-decoration: none; }
 nav a.active, nav a:hover { color: #ffbd3f; }
+.install-prompt { position: relative; flex: 0 0 auto; }
+.install-button { padding: .5rem .7rem; background: #ffbd3f; font: 700 .62rem 'DM Mono', monospace; text-transform: uppercase; letter-spacing: .04em; }
+.install-help { position: absolute; right: 0; top: calc(100% + .75rem); z-index: 20; width: min(18rem, calc(100vw - 2rem)); padding: 1rem; border: 1px solid #ffbd3f88; background: #1b1916; box-shadow: 6px 6px 0 #0c0b0a; }
+.install-help p { margin: .45rem 0 0; font-size: .8rem; }
+.install-close { position: absolute; top: .2rem; right: .2rem; padding: .2rem .45rem; background: transparent; color: #f5efe4; font-size: 1.2rem; }
 main { max-width: 1180px; padding: 4.5rem clamp(1.25rem, 5vw, 5rem) 7rem; margin: auto; }
 .narrow { max-width: 720px; min-height: 65vh; }
 .hero { max-width: 800px; padding: 1.5rem 0 7rem; position: relative; }
@@ -63,7 +68,7 @@ dd { margin: 0; color: #f5efe4; }
 .user-choice { text-align: left; background: #1b1916; color: #f5efe4; border: 1px solid #f5efe426; display: grid; gap: .2rem; }
 .user-choice span { color: #aaa398; font-weight: 400; }
 footer { display: flex; justify-content: space-between; gap: 1rem; padding: 2rem clamp(1.25rem, 5vw, 5rem); color: #8f8a81; border-top: 1px solid #f5efe41c; font: .68rem 'DM Mono', monospace; text-transform: uppercase; letter-spacing: .08em; }
-@media (max-width: 680px) { section > .game-card, .detail-grid { grid-template-columns: 1fr; } header { height: auto; padding-top: 1rem; padding-bottom: 1rem; } .brand { max-width: 14rem; } h1 { font-size: clamp(3.5rem, 18vw, 6rem); } .hero { padding-bottom: 5rem; } footer { flex-direction: column; } }
+@media (max-width: 680px) { section > .game-card, .detail-grid { grid-template-columns: 1fr; } header { height: auto; padding-top: max(1rem, env(safe-area-inset-top)); padding-bottom: 1rem; } .brand { max-width: 14rem; } h1 { font-size: clamp(3.5rem, 18vw, 6rem); } .hero { padding-bottom: 5rem; } footer { flex-direction: column; } .install-prompt { position: absolute; top: max(1rem, env(safe-area-inset-top)); right: 1rem; } nav { padding-right: 9rem; } }
 
 /* Shared platform surfaces */
 .profile-link { border-left: 1px solid #f5efe426; padding-left: 1.4rem; color: #f5efe4; }

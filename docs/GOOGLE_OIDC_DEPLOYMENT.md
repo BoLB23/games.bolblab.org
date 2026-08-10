@@ -89,7 +89,10 @@ secret before deployment.
 scripts/deploy --context <kubectl-context> --oidc --tag "$TAG"
 ```
 
-The deploy script rejects OIDC unless `games-bolblab-org-tls` exists. After the
-rollout, verify `/api/v1/health`, then start a Google sign-in. A successful
-login returns to `https://games.bolblab.org` and creates the first local user;
-the configured verified email receives the `overlord` role.
+Production OIDC is the safe default; `--oidc` may be supplied explicitly. The
+deploy script requires an explicit Kubernetes context, verifies the TLS secret,
+checks all OIDC secret keys and the HTTPS callback, and applies the production
+config map before rollout. After the rollout, verify `/api/v1/health`, then
+start a Google sign-in. A successful login returns to
+`https://games.bolblab.org` and creates the first local user; the configured
+verified email receives the `overlord` role.

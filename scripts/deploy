@@ -3,14 +3,17 @@ set -euo pipefail
 
 usage() {
   cat <<'EOF'
-Usage: scripts/deploy [--tag <tag>] [--context <context>] [--image-repo <repo>] [--oidc]
+Usage: scripts/deploy [--tag <tag>] [--context <context>] [--image-repo <repo>]
+                      [--oidc|--development]
 
-Deploys the API and web images to bolblab-games. The TLS ingress is used only
-when the pre-existing games-bolblab-org-tls secret is present.
+Deploys the API and web images to bolblab-games. Production OIDC mode is the
+default. The TLS ingress is required for production and is used only when the
+games-bolblab-org-tls secret is present.
 
---oidc applies the production Google OIDC API overlay. It requires that TLS
-secret and an OIDC-ready games-secrets secret; build the web image with
-VITE_AUTH_MODE=oidc before using it.
+--oidc explicitly selects production Google OIDC mode.
+--development explicitly selects the non-OIDC development deployment.
+Production requires an OIDC-ready games-secrets secret and a matching
+production config map.
 EOF
 }
 
@@ -18,7 +21,8 @@ NAMESPACE="bolblab-games"
 CONTEXT=""
 IMAGE_REPO="ghcr.io/bolb23/games.bolblab.org"
 TAG="$(git rev-parse --short HEAD 2>/dev/null || echo latest)"
-OIDC=false
+OIDC=true
+MODE_EXPLICIT=""
 
 require_command() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -42,7 +46,21 @@ while [ "$#" -gt 0 ]; do
       shift 2
       ;;
     --oidc)
+      if [ "$MODE_EXPLICIT" = development ]; then
+        echo "Error: --oidc and --development cannot be combined." >&2
+        exit 1
+      fi
+      MODE_EXPLICIT=oidc
       OIDC=true
+      shift
+      ;;
+    --development)
+      if [ "$MODE_EXPLICIT" = oidc ]; then
+        echo "Error: --oidc and --development cannot be combined." >&2
+        exit 1
+      fi
+      MODE_EXPLICIT=development
+      OIDC=false
       shift
       ;;
     --help|-h)
@@ -62,8 +80,15 @@ if [ -z "$TAG" ] || [ -z "$IMAGE_REPO" ]; then
   exit 1
 fi
 
+if [ "$OIDC" = true ] && [ "$CONTEXT" = "" ]; then
+  echo "Error: --context is required for production OIDC deployment." >&2
+  exit 1
+fi
+
 require_command kubectl
 require_command sed
+require_command grep
+require_command base64
 
 KUBECTL=(kubectl)
 if [ -n "$CONTEXT" ]; then
@@ -119,6 +144,24 @@ if ! "${KUBECTL[@]}" -n "$NAMESPACE" get secret games-secrets >/dev/null 2>&1; t
 fi
 
 if [ "$OIDC" = true ]; then
+  "${KUBECTL[@]}" apply -f "$MANIFEST_DIR/overlays/google-oidc/oidc-config.example.yaml"
+  for _key in OIDC_CLIENT_ID OIDC_CLIENT_SECRET OIDC_CALLBACK_URL OIDC_TRANSACTION_SECRET OVERLORD_EMAIL; do
+    if ! "${KUBECTL[@]}" -n "$NAMESPACE" get secret games-secrets -o "jsonpath={.data.$_key}" | grep -q .; then
+      echo "Error: games-secrets is missing required OIDC key: $_key" >&2
+      exit 1
+    fi
+  done
+  CALLBACK_URL="$("${KUBECTL[@]}" -n "$NAMESPACE" get secret games-secrets -o jsonpath='{.data.OIDC_CALLBACK_URL}' | base64 --decode)"
+  if [ "$CALLBACK_URL" != "https://games.bolblab.org/api/v1/auth/callback" ]; then
+    echo "Error: OIDC_CALLBACK_URL must be the production HTTPS callback URL." >&2
+    exit 1
+  fi
+  AUTH_MODE="$("${KUBECTL[@]}" -n "$NAMESPACE" get configmap games-oidc-config -o jsonpath='{.data.AUTH_MODE}' 2>/dev/null || true)"
+  APP_ENV="$("${KUBECTL[@]}" -n "$NAMESPACE" get configmap games-oidc-config -o jsonpath='{.data.APP_ENV}' 2>/dev/null || true)"
+  if [ "$AUTH_MODE" != "oidc" ] || [ "$APP_ENV" != "production" ]; then
+    echo "Error: games-oidc-config must set AUTH_MODE=oidc and APP_ENV=production." >&2
+    exit 1
+  fi
   "${KUBECTL[@]}" kustomize --load-restrictor LoadRestrictionsNone "$MANIFEST_DIR/overlays/google-oidc" \
     | sed "s|image: .*|image: $API_IMAGE|" \
     | "${KUBECTL[@]}" apply -f -

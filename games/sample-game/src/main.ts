@@ -87,11 +87,11 @@ async function load() {
       client.games.getBySlug('sample-game'),
     ]);
     gameSession = await client.startGameSession('sample-game');
-    render(`<main><a href="${catalogUrl}">← Back to catalog</a><div class="game-player-line">${avatarMarkup(player)}<span><span class="eyebrow">Your shared player</span><strong>${escapeHtml(player.nickname)}</strong></span></div><p class="eyebrow">Independent browser game</p><h1>${escapeHtml(game.title)}</h1><p>Welcome, <strong>${escapeHtml(user.display_name)}</strong>. Click the orb, bank a sample statistic, and then close the run.</p><button id="orb" aria-label="Increase your in-memory score"><span>✦</span></button><p class="score">Orb touches: <output id="score">0</output></p><div class="game-actions"><button id="submit-score" class="secondary">Bank score</button><button id="end-session" class="secondary">End session</button></div><p id="session-status" class="session-status">Session active · heartbeat every 45 seconds</p></main>`);
+    render(`<main><a class="exit-game" href="${catalogUrl}">← Exit to catalog</a><div class="game-player-line">${avatarMarkup(player)}<span><span class="eyebrow">Your shared player</span><strong>${escapeHtml(player.nickname)}</strong></span></div><p class="eyebrow">Independent browser game</p><h1>${escapeHtml(game.title)}</h1><p>Welcome, <strong>${escapeHtml(user.display_name)}</strong>. Click the orb, bank a sample statistic, and then close the run.</p><button id="orb" aria-label="Increase your in-memory score"><span>✦</span></button><p class="score">Orb touches: <output id="score">0</output></p><div class="game-actions"><button id="submit-score" class="secondary">Bank score</button><button id="end-session" class="secondary">End session</button></div><p id="session-status" class="session-status">Session active · heartbeat every 45 seconds</p></main>`);
     play();
   } catch (error) {
     const unauthenticated = error instanceof GamePlatformApiError && error.status === 401;
-    render(`<main><a href="${catalogUrl}">← Back to catalog</a><h1>${unauthenticated ? 'Choose a player first' : 'Platform unavailable'}</h1><p>${unauthenticated ? 'Return to the catalog and use development authentication before opening this game.' : 'The game cannot reach its catalog API. Check that the API is running and the database is seeded.'}</p></main>`);
+    render(`<main><a class="exit-game" href="${catalogUrl}">← Exit to catalog</a><h1>${unauthenticated ? 'Choose a player first' : 'Platform unavailable'}</h1><p>${unauthenticated ? 'Return to the catalog and use development authentication before opening this game.' : 'The game cannot reach its catalog API. Check that the API is running and the database is seeded.'}</p></main>`);
   }
 }
 void load();

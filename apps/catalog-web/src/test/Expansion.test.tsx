@@ -105,6 +105,8 @@ describe('player, clan, and leaderboard surfaces', () => {
     ], current_user_entry: null, current_user_rank: null });
     expect(formatLeaderboardValue(1234, 'points')).toBe('1,234');
     expect(formatLeaderboardValue(61.25, 'seconds')).toBe('1m 01.25s');
+    expect(formatLeaderboardValue(45_000, 'milliseconds')).toBe('45.00s');
+    expect(formatLeaderboardValue(75_500, 'milliseconds')).toBe('1m 15.50s');
     renderPage(<LeaderboardsPage />);
     await waitFor(() => expect(screen.getByText('Ada')).toBeInTheDocument());
     const rows = screen.getAllByRole('listitem');
