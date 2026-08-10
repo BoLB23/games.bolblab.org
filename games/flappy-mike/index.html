@@ -2,11 +2,17 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
     <title>FlappyMike</title>
   </head>
   <body>
-    <main id="app" aria-label="FlappyMike game"></main>
+    <main id="app" aria-label="FlappyMike game">
+      <div id="orientation-notice" role="status" aria-live="polite">
+        <span class="orientation-icon" aria-hidden="true">↔</span>
+        <strong>Turn your phone sideways</strong>
+        <span>Flappy Mike flies best in landscape.</span>
+      </div>
+    </main>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
