@@ -72,17 +72,37 @@ def _upsert_player(session: Session, user: User, **values: str) -> None:
         setattr(profile, key, value)
 
 
-def _upsert_game(session: Session, slug: str, **values: object) -> Game:
+def _upsert_game(
+    session: Session,
+    slug: str,
+    *,
+    preserve_existing_state: bool = False,
+    **values: object,
+) -> Game:
     game = session.scalar(select(Game).where(Game.slug == slug))
     if game is None:
         game = Game(slug=slug, **values)
         session.add(game)
         session.flush()
         return game
+    if preserve_existing_state:
+        return game
     for key, value in values.items():
         setattr(game, key, value)
     session.flush()
     return game
+
+
+def _remove_development_users(session: Session) -> None:
+    """Remove only seeded development identities from a production database."""
+    users = session.scalars(
+        select(User)
+        .join(User.external_identities)
+        .where(ExternalIdentity.issuer == DevelopmentAuthProvider.issuer)
+    ).all()
+    for user in users:
+        session.delete(user)
+    session.flush()
 
 
 def _upsert_leaderboard(
@@ -189,6 +209,7 @@ def _seed_catalog(
     milton_estates_launch_url: str | None,
     milton_estates_enabled: bool,
     milton_estates_cloud_saves_enabled: bool,
+    preserve_existing_game_state: bool = False,
 ) -> tuple[Game, Game, Game]:
     sample_game = _upsert_game(
         session,
@@ -210,6 +231,7 @@ def _seed_catalog(
         supports_multiplayer=False,
         is_featured=False,
         sort_order=10,
+        preserve_existing_state=preserve_existing_game_state,
     )
     flappy_mike = _upsert_game(
         session,
@@ -232,6 +254,7 @@ def _seed_catalog(
         supports_multiplayer=False,
         is_featured=False,
         sort_order=15,
+        preserve_existing_state=preserve_existing_game_state,
     )
     milton_estates = _upsert_game(
         session,
@@ -294,6 +317,7 @@ def seed_database(
     if milton_estates_cloud_saves_enabled and not milton_estates_enabled:
         raise ValueError("MILTON_ESTATES_ENABLED must be true when cloud saves are enabled")
     if not include_development_data:
+        _remove_development_users(session)
         _seed_catalog(
             session,
             sample_game_origin=sample_game_origin,
@@ -302,6 +326,7 @@ def seed_database(
             milton_estates_launch_url=milton_estates_launch_url,
             milton_estates_enabled=milton_estates_enabled,
             milton_estates_cloud_saves_enabled=milton_estates_cloud_saves_enabled,
+            preserve_existing_game_state=True,
         )
         session.commit()
         return

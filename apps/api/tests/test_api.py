@@ -221,6 +221,11 @@ def test_production_seed_upserts_catalog_without_development_users(tmp_path: Pat
     db_session.configure_database(f"sqlite:///{database_path}")
     Base.metadata.create_all(db_session.engine)
     with db_session.SessionLocal() as session:
+        seed_database(session, "https://games.example.test/games/sample-game/")
+        sample = session.scalar(select(Game).where(Game.slug == "sample-game"))
+        assert sample is not None
+        sample.status = "hidden"
+        session.commit()
         seed_database(
             session,
             "https://games.example.test/games/sample-game/",
@@ -233,6 +238,7 @@ def test_production_seed_upserts_catalog_without_development_users(tmp_path: Pat
         flappy = session.scalar(select(Game).where(Game.slug == "flappy-mike"))
         milton = session.scalar(select(Game).where(Game.slug == "milton-estates"))
         assert session.execute(text("SELECT count(*) FROM users")).scalar_one() == 0
+        assert sample.status == "hidden"
         assert flappy is not None and flappy.cover_image_url == "/assets/flappy-mike-cover.png"
         assert milton is not None and milton.launch_url == "https://games.example.test/games/milton-estates/"
     Base.metadata.drop_all(db_session.engine)

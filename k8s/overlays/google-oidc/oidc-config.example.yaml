@@ -17,4 +17,4 @@ data:
   MILTON_ESTATES_ORIGIN: https://games.bolblab.org
   MILTON_ESTATES_LAUNCH_URL: https://games.bolblab.org/games/milton-estates/
   MILTON_ESTATES_ENABLED: "true"
-  MILTON_ESTATES_CLOUD_SAVES_ENABLED: "false"
+  MILTON_ESTATES_CLOUD_SAVES_ENABLED: "true"
