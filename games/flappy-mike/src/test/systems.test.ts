@@ -26,6 +26,21 @@ describe('FlappyMike gameplay systems', () => {
     expect(end.obstacleGap).toBe(config.obstacleGapMin);
   });
 
+  it('uses a faster, harder difficulty ramp and a larger player hitbox', () => {
+    const config = createRuntimeGameplayConfig();
+    const difficulty = new DifficultyDirector();
+
+    expect(config.difficultyRampDistance).toBe(6_000);
+    expect(config.worldSpeedMax).toBe(430);
+    expect(config.obstacleGapMin).toBe(130);
+    expect(config.playerHitboxScale).toBe(0.92);
+
+    const midpoint = difficulty.getSnapshot(config.difficultyRampDistance / 2, config);
+    expect(midpoint.worldSpeed).toBe(325);
+    expect(midpoint.obstacleGap).toBe(160);
+    expect(getPlayerHitboxSize(config)).toBeCloseTo(64.4);
+  });
+
   it('keeps procedural obstacle gap shifts fair and inside the safe corridor', () => {
     const config = createRuntimeGameplayConfig();
     const planner = new GapPlanner(() => 1);
@@ -72,7 +87,7 @@ describe('FlappyMike gameplay systems', () => {
     expect(firstFarm.far).toBeGreaterThan(firstFarm.ground);
   });
 
-  it('keeps Mike’s original collision size while increasing only his display size', () => {
+  it('keeps Mike’s display size independent from his collision size', () => {
     const config = createRuntimeGameplayConfig();
     expect(PLAYER_VISUAL_SIZE).toBeGreaterThan(PLAYER_COLLISION_REFERENCE_SIZE);
     expect(getPlayerHitboxSize(config)).toBe(70 * config.playerHitboxScale);

@@ -2,9 +2,8 @@ import Phaser from 'phaser';
 import { ANIMATION_KEYS } from '../assets/assetManifest';
 import type { GameplayConfig } from '../config/gameplay';
 
-// The atlas is deliberately shown larger than its collision reference. This
-// lets Mike stay legible over richer scenery without changing the flight path
-// or the forgiving hitbox players already know.
+// Keep the visual atlas and collision body independently tunable so Mike stays
+// legible over richer scenery while the gameplay hitbox remains intentional.
 export const PLAYER_VISUAL_SIZE = 80;
 export const PLAYER_COLLISION_REFERENCE_SIZE = 70;
 
