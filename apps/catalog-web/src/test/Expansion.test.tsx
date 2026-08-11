@@ -88,12 +88,13 @@ describe('player, clan, and leaderboard surfaces', () => {
 
   it('renders online and offline clan indicators from server state', async () => {
     mocks.clanList.mockResolvedValue([
-      { user_id: 'pat', display_name: 'Pat Player', avatar_url: null, nickname: 'Pat', appearance, role: 'member', is_online: true, last_seen_at: new Date().toISOString(), total_playtime_seconds: 61, games: [], most_recent_game: null },
       { user_id: 'mara', display_name: 'Mara Member', avatar_url: null, nickname: 'Mara', appearance: { ...appearance, nickname: 'Mara' }, role: 'peon', is_online: false, last_seen_at: new Date(Date.now() - 86_400_000).toISOString(), total_playtime_seconds: 0, games: [], most_recent_game: null },
+      { user_id: 'pat', display_name: 'Pat Player', avatar_url: null, nickname: 'Pat', appearance, role: 'member', is_online: true, last_seen_at: new Date().toISOString(), total_playtime_seconds: 61, games: [], most_recent_game: null },
     ]);
     renderPage(<ClanPage />);
     expect(await screen.findByLabelText('Online now')).toBeInTheDocument();
     expect(screen.getByLabelText('Offline')).toBeInTheDocument();
+    expect(screen.getAllByRole('article')[0]).toHaveTextContent('Pat');
   });
 
   it('formats leaderboard values and renders the ranked order', async () => {

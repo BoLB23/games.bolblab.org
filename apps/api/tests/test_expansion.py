@@ -63,6 +63,23 @@ def test_presence_heartbeat_and_online_window(client: TestClient) -> None:
     assert pat_member["is_online"] is False
 
 
+def test_clan_members_list_online_players_first(client: TestClient) -> None:
+    pat = _login(client, "Pat Player")
+    with db_session.SessionLocal() as session:
+        other_users = session.scalars(select(User).where(User.id != UUID(str(pat["id"]))))
+        for user in other_users:
+            user.last_seen_at = utc_now() - timedelta(minutes=5)
+        session.commit()
+    assert client.post("/api/v1/presence/heartbeat").status_code == 200
+
+    members = client.get("/api/v1/clan/members")
+
+    assert members.status_code == 200
+    assert members.json()[0]["user_id"] == pat["id"]
+    online_members = [member["is_online"] for member in members.json()]
+    assert online_members == sorted(online_members, reverse=True)
+
+
 def test_game_session_credits_time_and_caps_abandoned_gap(client: TestClient) -> None:
     _login(client, "Pat Player")
     started = client.post("/api/v1/games/sample-game/sessions")
