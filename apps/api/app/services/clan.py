@@ -100,7 +100,16 @@ def list_clan_members(session: Session, *, settings: Settings) -> list[dict[str,
     grouped: dict[uuid.UUID, list[GameSession]] = defaultdict(list)
     for game_session in game_sessions:
         grouped[game_session.user_id].append(game_session)
-    return [_member_response(user, grouped[user.id], settings=settings) for user in users]
+    members = [_member_response(user, grouped[user.id], settings=settings) for user in users]
+    # Presence is the primary organizing signal on the clan board. Keep the
+    # alphabetical order as a stable, predictable tie-breaker within each group.
+    return sorted(
+        members,
+        key=lambda member: (
+            not bool(member["is_online"]),
+            str(member["display_name"]).casefold(),
+        ),
+    )
 
 
 def get_clan_member(session: Session, *, user_id: uuid.UUID, settings: Settings) -> dict[str, object] | None:

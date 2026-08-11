@@ -180,7 +180,10 @@ export function ClanPage() {
   const updateRole = useMutation({ mutationFn: ({ userId, role }: { userId: string; role: ClanRole }) => client.clan.updateRole(userId, role), onSuccess: () => { void queryClient.invalidateQueries({ queryKey: ['clan-members'] }); } });
   if (members.isLoading) return <main><Loading label="Checking who is in the room…" /></main>;
   if (members.isError) return <main><ErrorState>The clan board is unavailable right now.</ErrorState></main>;
-  const clan = members.data ?? [];
+  const clan = [...(members.data ?? [])].sort((left, right) => {
+    if (left.is_online !== right.is_online) return left.is_online ? -1 : 1;
+    return left.display_name.localeCompare(right.display_name);
+  });
   return <main className="clan-page"><div className="page-intro"><span className="kicker">My clan · {clan.length} crew members</span><h1>The crew.</h1><p className="lede">Longtime friends, fresh rivalries. Presence is based on the last platform heartbeat, not a guess in the browser.</p></div><div className="clan-grid">{clan.map((member) => <ClanMemberCard key={member.user_id} member={member} canEditRole={user?.role === 'overlord' && user.id !== member.user_id} rolePending={updateRole.isPending} onRoleChange={(role) => updateRole.mutate({ userId: member.user_id, role })} />)}</div>{updateRole.isError && <ErrorState>That role change did not stick. Try again.</ErrorState>}</main>;
 }
 
