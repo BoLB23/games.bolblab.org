@@ -28,5 +28,13 @@ class DevelopmentUserResponse(BaseModel):
     role: ClanRole
 
 
+class SessionStatusResponse(BaseModel):
+    """Safe session metadata; the opaque session credential is never returned."""
+
+    user: UserResponse
+    expires_at: datetime
+    is_sliding: bool = False
+
+
 class DevLoginRequest(BaseModel):
     user_id: uuid.UUID

@@ -84,6 +84,7 @@ def submit_entry(
             user=user,
             value=payload.value,
             metadata=payload.metadata,
+            idempotency_key=payload.idempotency_key,
             settings=settings,
         )
     except LeaderboardError as error:

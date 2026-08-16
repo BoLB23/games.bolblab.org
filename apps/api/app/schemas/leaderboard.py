@@ -59,6 +59,7 @@ class LeaderboardEntrySubmitRequest(BaseModel):
 
     value: float = Field(...)
     metadata: dict[str, Any] | None = None
+    idempotency_key: str | None = Field(default=None, min_length=1, max_length=128, pattern=r"^[A-Za-z0-9._-]+$")
 
     @field_validator("value")
     @classmethod

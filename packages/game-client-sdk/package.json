@@ -1,6 +1,6 @@
 {
   "name": "@bolb23/game-client-sdk",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Typed browser client for the BoLB game platform API.",
   "type": "module",
   "main": "./dist/index.js",

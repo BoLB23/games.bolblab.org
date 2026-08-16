@@ -64,3 +64,5 @@ async function persist(state: MiltonSaveState, revision: number | null) {
 ```
 
 Keep Milton's current LocalStorage save as a separate source until the player completes that migration. `createGameSaveCache()` is deliberately only a cache: it never uploads, merges, or replaces game data by itself.
+
+For tabs that may survive a session expiry, suspension, or offline period, use the opt-in durable save manager described in [Long-idle browser SDK](LONG_IDLE_BROWSER_SDK.md). It persists a pending snapshot before network delivery and preserves revision conflicts for Milton's recovery UI.

@@ -5,12 +5,13 @@ import math
 from typing import Any
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.config import Settings
 from app.models.common import utc_now
 from app.models.game import Game
-from app.models.leaderboard import LeaderboardDefinition, LeaderboardEntry
+from app.models.leaderboard import LeaderboardDefinition, LeaderboardEntry, LeaderboardSubmission
 from app.models.user import User
 from app.services.player import default_appearance
 
@@ -185,6 +186,7 @@ def submit_leaderboard_entry(
     user: User,
     value: float,
     metadata: dict[str, Any] | None,
+    idempotency_key: str | None,
     settings: Settings,
 ) -> dict[str, object]:
     if not math.isfinite(value) or abs(value) > settings.leaderboard_max_value:
@@ -204,6 +206,22 @@ def submit_leaderboard_entry(
         raise LeaderboardError("Leaderboard not found for this game", status_code=404)
     board.game = game
     _validate_board_value(board, value)
+    if idempotency_key is not None:
+        previous = session.scalar(
+            select(LeaderboardSubmission).where(
+                LeaderboardSubmission.leaderboard_id == board.id,
+                LeaderboardSubmission.user_id == user.id,
+                LeaderboardSubmission.idempotency_key == idempotency_key,
+            )
+        )
+        if previous is not None:
+            if previous.value != value or previous.metadata_json != metadata:
+                raise LeaderboardError("Idempotency key was already used for a different submission", status_code=409)
+            response = get_leaderboard_response(session, board=board, current_user=user, limit=100)
+            current_entry = response["current_user_entry"]
+            if not isinstance(current_entry, dict):
+                raise LeaderboardError("Leaderboard entry could not be ranked", status_code=500)
+            return {"entry": current_entry, "rank": current_entry["rank"]}
     existing = session.scalar(
         select(LeaderboardEntry).where(
             LeaderboardEntry.leaderboard_id == board.id,
@@ -244,7 +262,39 @@ def submit_leaderboard_entry(
         if is_improvement or aggregation in {"latest", "sum"}:
             existing.achieved_at = timestamp
             existing.metadata_json = metadata
-    session.commit()
+    if idempotency_key is not None:
+        session.add(
+            LeaderboardSubmission(
+                leaderboard_id=board.id,
+                user_id=user.id,
+                idempotency_key=idempotency_key,
+                value=value,
+                metadata_json=metadata,
+            )
+        )
+    try:
+        session.commit()
+    except IntegrityError as error:
+        session.rollback()
+        if idempotency_key is None:
+            raise
+        previous = session.scalar(
+            select(LeaderboardSubmission).where(
+                LeaderboardSubmission.leaderboard_id == board.id,
+                LeaderboardSubmission.user_id == user.id,
+                LeaderboardSubmission.idempotency_key == idempotency_key,
+            )
+        )
+        if previous is None:
+            raise
+        if previous.value != value or previous.metadata_json != metadata:
+            raise LeaderboardError("Idempotency key was already used for a different submission", status_code=409) from error
+        board = get_leaderboard_definition(session, leaderboard_key=leaderboard_key, game_slug=game_slug)
+        response = get_leaderboard_response(session, board=board, current_user=user, limit=100)
+        current_entry = response["current_user_entry"]
+        if not isinstance(current_entry, dict):
+            raise LeaderboardError("Leaderboard entry could not be ranked", status_code=500) from error
+        return {"entry": current_entry, "rank": current_entry["rank"]}
     session.refresh(existing)
     board = get_leaderboard_definition(session, leaderboard_key=leaderboard_key, game_slug=game_slug)
     response = get_leaderboard_response(session, board=board, current_user=user, limit=100)

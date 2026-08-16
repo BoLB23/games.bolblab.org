@@ -14,6 +14,18 @@ export interface PlatformUser {
   needs_player_setup: boolean;
 }
 
+/** Metadata from the HTTP-only platform session. No credential is exposed to JavaScript. */
+export interface PlatformSessionStatus {
+  user: PlatformUser;
+  expiresAt: string;
+  /** Platform sessions have a fixed lifetime and are not extended by requests. */
+  isSliding: false;
+}
+
+export type AuthenticationRevalidation =
+  | { status: 'authenticated'; session: PlatformSessionStatus }
+  | { status: 'reauthentication_required'; error: GamePlatformApiError };
+
 export interface PlatformPlayer {
   userId: string;
   nickname: string;
@@ -146,6 +158,8 @@ export interface SubmitLeaderboardEntryInput {
   leaderboardKey: string;
   value: number;
   metadata?: Record<string, unknown>;
+  /** Required for callers that may retry a mutation after an ambiguous result. */
+  idempotencyKey?: string;
 }
 
 export interface GameSaveMetadata {
@@ -199,6 +213,7 @@ export interface GameSessionHandle {
 
 export interface GameLabSDK {
   getCurrentPlayer(): Promise<PlatformPlayer>;
+  revalidateAuthentication(): Promise<AuthenticationRevalidation>;
   startGameSession(gameSlug: string): Promise<GameSessionHandle>;
   submitLeaderboardEntry(gameSlug: string, input: SubmitLeaderboardEntryInput): Promise<{ entry: LeaderboardEntry; rank: number }>;
   saves: CloudSaveClient;
@@ -367,7 +382,23 @@ export function createGamePlatformClient(options: GamePlatformClientOptions): Ga
     }
   }
 
-  const auth = { getCurrentUser: () => request<PlatformUser>('/auth/me') };
+  const auth = {
+    getCurrentUser: () => request<PlatformUser>('/auth/me'),
+    revalidate: async (): Promise<AuthenticationRevalidation> => {
+      try {
+        const response = await request<{ user: PlatformUser; expires_at: string; is_sliding: boolean }>('/auth/session');
+        return {
+          status: 'authenticated',
+          session: { user: response.user, expiresAt: response.expires_at, isSliding: false },
+        };
+      } catch (error) {
+        if (error instanceof GamePlatformApiError && error.code === 'unauthorized') {
+          return { status: 'reauthentication_required', error };
+        }
+        throw error;
+      }
+    },
+  };
   const games = {
     list: () => request<PlatformGame[]>('/games'),
     getBySlug: (slug: string) => request<PlatformGame>(`/games/${encodeURIComponent(slug)}`),
@@ -398,7 +429,11 @@ export function createGamePlatformClient(options: GamePlatformClientOptions): Ga
       if (gameSlug) query.set('game_slug', gameSlug);
       return request<LeaderboardResponse>(`/leaderboards/${encodeURIComponent(leaderboardKey)}?${query.toString()}`);
     },
-    submit: (gameSlug: string, input: SubmitLeaderboardEntryInput) => request<{ entry: LeaderboardEntry; rank: number }>(`/games/${encodeURIComponent(gameSlug)}/leaderboards/${encodeURIComponent(input.leaderboardKey)}/entries`, { method: 'POST', body: { value: input.value, metadata: input.metadata } }),
+    submit: (gameSlug: string, input: SubmitLeaderboardEntryInput) => request<{ entry: LeaderboardEntry; rank: number }>(`/games/${encodeURIComponent(gameSlug)}/leaderboards/${encodeURIComponent(input.leaderboardKey)}/entries`, { method: 'POST', body: {
+      value: input.value,
+      metadata: input.metadata,
+      idempotency_key: input.idempotencyKey,
+    } }),
   };
   const saves: CloudSaveClient = {
     list: async (gameSlug) => {
@@ -445,6 +480,7 @@ export function createGamePlatformClient(options: GamePlatformClientOptions): Ga
     leaderboards,
     saves,
     getCurrentPlayer: async () => toPlatformPlayer(await players.getCurrent()),
+    revalidateAuthentication: () => auth.revalidate(),
     startGameSession: async (gameSlug: string): Promise<GameSessionHandle> => {
       const started = await sessions.start(gameSlug);
       const sessionId = started.session_id || started.id;
@@ -462,7 +498,10 @@ export function createGamePlatformClient(options: GamePlatformClientOptions): Ga
 }
 
 export interface GamePlatformClient {
-  auth: { getCurrentUser: () => Promise<PlatformUser> };
+  auth: {
+    getCurrentUser: () => Promise<PlatformUser>;
+    revalidate: () => Promise<AuthenticationRevalidation>;
+  };
   games: {
     list: () => Promise<PlatformGame[]>;
     getBySlug: (slug: string) => Promise<PlatformGame>;
@@ -490,4 +529,613 @@ export interface GamePlatformClient {
     submit: (gameSlug: string, input: SubmitLeaderboardEntryInput) => Promise<{ entry: LeaderboardEntry; rank: number }>;
   };
   saves: CloudSaveClient;
+}
+
+export type DurableSyncStatus = 'dirty' | 'saving' | 'saved' | 'offline' | 'unauthorized' | 'failed' | 'conflict';
+
+export interface DurableSaveState<T> {
+  status: DurableSyncStatus;
+  pending: PutGameSaveInput<T> | null;
+  saved: GameSave<T> | null;
+  error?: GamePlatformApiError;
+  conflict?: GamePlatformApiError;
+}
+
+export interface BrowserEventTarget {
+  addEventListener(type: string, listener: () => void): void;
+  removeEventListener(type: string, listener: () => void): void;
+}
+
+export interface DurableSaveOptions<T> {
+  client: { auth: Pick<GamePlatformClient['auth'], 'revalidate'>; saves: CloudSaveClient };
+  /** Obtain this from auth.revalidate; it is used to isolate browser storage per account. */
+  userId: string;
+  gameSlug: string;
+  slotKey: string;
+  storage?: LocalSaveStorage;
+  keyPrefix?: string;
+  initialSave?: GameSave<T> | null;
+  maxRetries?: number;
+  retryBaseMs?: number;
+  online?: () => boolean;
+  events?: BrowserEventTarget;
+  visibility?: { hidden: boolean } & BrowserEventTarget;
+}
+
+interface PendingSave<T> extends PutGameSaveInput<T> {
+  attempts: number;
+}
+
+function defaultStorage(): LocalSaveStorage | undefined {
+  return typeof localStorage === 'undefined' ? undefined : localStorage;
+}
+
+function defaultEvents(): BrowserEventTarget | undefined {
+  return typeof window === 'undefined' ? undefined : window;
+}
+
+function defaultVisibility(): ({ hidden: boolean } & BrowserEventTarget) | undefined {
+  return typeof document === 'undefined' ? undefined : document;
+}
+
+function isOnline(): boolean {
+  return typeof navigator === 'undefined' || navigator.onLine !== false;
+}
+
+function safelyRead<T>(storage: LocalSaveStorage | undefined, key: string): T | null {
+  if (!storage) return null;
+  try {
+    const raw = storage.getItem(key);
+    return raw === null ? null : JSON.parse(raw) as T;
+  } catch {
+    return null;
+  }
+}
+
+function safelyWrite(storage: LocalSaveStorage | undefined, key: string, value: unknown): boolean {
+  if (!storage) return false;
+  try {
+    storage.setItem(key, JSON.stringify(value));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function safelyRemove(storage: LocalSaveStorage | undefined, key: string): void {
+  try {
+    storage?.removeItem(key);
+  } catch {
+    // Storage can be disabled or full. The in-memory pending write remains intact.
+  }
+}
+
+function sameJson(left: unknown, right: unknown): boolean {
+  try {
+    return JSON.stringify(left) === JSON.stringify(right);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Opt-in, account-scoped durable save delivery. A snapshot is persisted before
+ * every PUT and is never removed until a server response (or reconciliation)
+ * proves that exact snapshot was stored.
+ */
+export class DurableGameSave<T> {
+  private readonly client: { auth: Pick<GamePlatformClient['auth'], 'revalidate'>; saves: CloudSaveClient };
+  private readonly storage: LocalSaveStorage | undefined;
+  private readonly key: string;
+  private readonly online: () => boolean;
+  private readonly maxRetries: number;
+  private readonly retryBaseMs: number;
+  private readonly listeners = new Set<(state: DurableSaveState<T>) => void>();
+  private pending: PendingSave<T> | null;
+  private saved: GameSave<T> | null;
+  private stateValue: DurableSaveState<T>;
+  private running: Promise<DurableSaveState<T>> | null = null;
+  private retryTimer: ReturnType<typeof setTimeout> | null = null;
+  private readonly onRetrySignal = () => { void this.flush(); };
+  private readonly onVisible = () => { if (!this.visibility?.hidden) void this.flush(); };
+  private readonly events?: BrowserEventTarget;
+  private readonly visibility?: ({ hidden: boolean } & BrowserEventTarget);
+
+  constructor(private readonly options: DurableSaveOptions<T>) {
+    this.client = options.client;
+    this.storage = options.storage ?? defaultStorage();
+    const prefix = options.keyPrefix ?? '@game-platform/durable-save/v1';
+    this.key = `${prefix}/${encodeURIComponent(options.userId)}/${encodeURIComponent(options.gameSlug)}/${encodeURIComponent(options.slotKey)}`;
+    this.pending = safelyRead<PendingSave<T>>(this.storage, this.key);
+    this.saved = options.initialSave ?? null;
+    this.online = options.online ?? isOnline;
+    this.maxRetries = options.maxRetries ?? 5;
+    this.retryBaseMs = options.retryBaseMs ?? 1_000;
+    this.events = options.events ?? defaultEvents();
+    this.visibility = options.visibility ?? defaultVisibility();
+    this.stateValue = { status: this.pending ? 'dirty' : 'saved', pending: this.pending, saved: this.saved };
+    this.events?.addEventListener('online', this.onRetrySignal);
+    this.visibility?.addEventListener('visibilitychange', this.onVisible);
+  }
+
+  get state(): DurableSaveState<T> { return this.stateValue; }
+
+  subscribe(listener: (state: DurableSaveState<T>) => void): () => void {
+    this.listeners.add(listener);
+    listener(this.stateValue);
+    return () => this.listeners.delete(listener);
+  }
+
+  /** Persists locally first. It intentionally does not reject due to transient delivery failures. */
+  save(input: PutGameSaveInput<T>): DurableSaveState<T> {
+    this.pending = { ...input, attempts: 0 };
+    safelyWrite(this.storage, this.key, this.pending);
+    this.setState({ status: this.online() ? 'dirty' : 'offline', pending: this.pending, saved: this.saved });
+    void this.flush();
+    return this.stateValue;
+  }
+
+  /** Call after a visible-tab revalidation or a user-completed interactive login. */
+  async recoverAfterReauthentication(): Promise<DurableSaveState<T>> {
+    const authentication = await this.client.auth.revalidate();
+    if (authentication.status === 'reauthentication_required') {
+      this.setState({ status: 'unauthorized', pending: this.pending, saved: this.saved, error: authentication.error });
+      return this.stateValue;
+    }
+    if (authentication.session.user.id !== this.options.userId) {
+      const error = new GamePlatformApiError('Pending save belongs to a different player', undefined, 'unauthorized');
+      this.setState({ status: 'unauthorized', pending: this.pending, saved: this.saved, error });
+      return this.stateValue;
+    }
+    return this.flush(true);
+  }
+
+  async flush(alreadyRevalidated = false): Promise<DurableSaveState<T>> {
+    if (this.running) {
+      return this.running.then(() => this.stateValue.status === 'offline' && this.pending && this.online()
+        ? this.flush(alreadyRevalidated)
+        : this.stateValue);
+    }
+    this.running = this.flushLoop(alreadyRevalidated).finally(() => { this.running = null; });
+    return this.running;
+  }
+
+  dispose(): void {
+    if (this.retryTimer) clearTimeout(this.retryTimer);
+    this.events?.removeEventListener('online', this.onRetrySignal);
+    this.visibility?.removeEventListener('visibilitychange', this.onVisible);
+    this.listeners.clear();
+  }
+
+  private async flushLoop(alreadyRevalidated: boolean): Promise<DurableSaveState<T>> {
+    let authenticated = alreadyRevalidated;
+    while (this.pending) {
+      if (!this.online()) {
+        this.setState({ status: 'offline', pending: this.pending, saved: this.saved });
+        return this.stateValue;
+      }
+      if (!authenticated) {
+        try {
+          const authentication = await this.client.auth.revalidate();
+          if (authentication.status === 'reauthentication_required') {
+            this.setState({ status: 'unauthorized', pending: this.pending, saved: this.saved, error: authentication.error });
+            return this.stateValue;
+          }
+          if (authentication.session.user.id !== this.options.userId) {
+            const error = new GamePlatformApiError('Pending save belongs to a different player', undefined, 'unauthorized');
+            this.setState({ status: 'unauthorized', pending: this.pending, saved: this.saved, error });
+            return this.stateValue;
+          }
+          authenticated = true;
+        } catch (error) {
+          return this.handleTransportError(this.asApiError(error));
+        }
+      }
+      const pending = this.pending;
+      this.setState({ status: 'saving', pending, saved: this.saved });
+      try {
+        const saved = await this.client.saves.put(this.options.gameSlug, this.options.slotKey, pending);
+        this.confirmSaved(pending, saved);
+        authenticated = true;
+      } catch (error) {
+        const apiError = this.asApiError(error);
+        if (apiError.code === 'network' || apiError.code === 'timeout') {
+          const reconciliation = await this.reconcileUnknownPut(pending);
+          if (reconciliation === 'saved') continue;
+          if (reconciliation === 'terminal') return this.stateValue;
+          return this.handleTransportError(apiError);
+        }
+        if (apiError.code === 'unauthorized') {
+          this.setState({ status: 'unauthorized', pending: this.pending, saved: this.saved, error: apiError });
+        } else if (apiError.code === 'conflict') {
+          this.setState({ status: 'conflict', pending: this.pending, saved: this.saved, conflict: apiError });
+        } else {
+          this.setState({ status: 'failed', pending: this.pending, saved: this.saved, error: apiError });
+        }
+        return this.stateValue;
+      }
+    }
+    return this.stateValue;
+  }
+
+  private async reconcileUnknownPut(pending: PendingSave<T>): Promise<'saved' | 'retry' | 'terminal'> {
+    try {
+      const remote = await this.client.saves.get<T>(this.options.gameSlug, this.options.slotKey);
+      if (sameJson(remote.data, pending.data)
+        && remote.gameVersion === pending.gameVersion
+        && remote.schemaVersion === pending.schemaVersion) {
+        this.confirmSaved(pending, remote);
+        return 'saved';
+      }
+      const conflict = new GamePlatformApiError('Save result is ambiguous and remote data differs', 409, 'conflict', { current: remote });
+      this.setState({ status: 'conflict', pending: this.pending, saved: this.saved, conflict });
+      return 'terminal';
+    } catch (error) {
+      const apiError = this.asApiError(error);
+      if (apiError.code === 'not_found' || apiError.code === 'network' || apiError.code === 'timeout') return 'retry';
+      if (apiError.code === 'unauthorized') this.setState({ status: 'unauthorized', pending: this.pending, saved: this.saved, error: apiError });
+      else this.setState({ status: 'failed', pending: this.pending, saved: this.saved, error: apiError });
+      return 'terminal';
+    }
+  }
+
+  private confirmSaved(pending: PendingSave<T>, saved: GameSave<T>): void {
+    this.saved = saved;
+    if (this.pending === pending) {
+      this.pending = null;
+      safelyRemove(this.storage, this.key);
+      this.setState({ status: 'saved', pending: null, saved });
+      return;
+    }
+    // A newer snapshot arrived while this request was in flight. It must use
+    // the revision just confirmed, and remains durable until its own PUT wins.
+    if (this.pending && this.pending.expectedRevision === pending.expectedRevision) {
+      this.pending.expectedRevision = saved.revision;
+      safelyWrite(this.storage, this.key, this.pending);
+    }
+    this.setState({ status: 'dirty', pending: this.pending, saved });
+  }
+
+  private handleTransportError(error: GamePlatformApiError): DurableSaveState<T> {
+    const pending = this.pending;
+    if (!pending) return this.stateValue;
+    pending.attempts += 1;
+    if (!this.online()) {
+      this.setState({ status: 'offline', pending, saved: this.saved, error });
+      return this.stateValue;
+    }
+    if (pending.attempts > this.maxRetries) {
+      this.setState({ status: 'failed', pending, saved: this.saved, error });
+      return this.stateValue;
+    }
+    safelyWrite(this.storage, this.key, pending);
+    this.setState({ status: 'dirty', pending, saved: this.saved, error });
+    const delay = this.retryBaseMs * 2 ** (pending.attempts - 1);
+    if (this.retryTimer) clearTimeout(this.retryTimer);
+    this.retryTimer = setTimeout(() => { void this.flush(); }, delay);
+    return this.stateValue;
+  }
+
+  private asApiError(error: unknown): GamePlatformApiError {
+    return error instanceof GamePlatformApiError
+      ? error
+      : new GamePlatformApiError('Unexpected save delivery failure', undefined, 'api', error);
+  }
+
+  private setState(state: DurableSaveState<T>): void {
+    this.stateValue = state;
+    for (const listener of this.listeners) {
+      try { listener(state); } catch { /* A game listener must not break delivery. */ }
+    }
+  }
+}
+
+export function createDurableGameSave<T>(options: DurableSaveOptions<T>): DurableGameSave<T> {
+  return new DurableGameSave(options);
+}
+
+export type LeaderboardOutboxStatus = 'accepted' | 'queued' | 'unauthorized' | 'permanently_rejected' | 'offline';
+
+export interface LeaderboardOutboxState {
+  status: LeaderboardOutboxStatus;
+  queuedCount: number;
+  error?: GamePlatformApiError;
+}
+
+export interface DurableLeaderboardOutboxOptions {
+  client: {
+    auth: Pick<GamePlatformClient['auth'], 'revalidate'>;
+    leaderboards: Pick<GamePlatformClient['leaderboards'], 'submit'>;
+  };
+  userId: string;
+  gameSlug: string;
+  storage?: LocalSaveStorage;
+  keyPrefix?: string;
+  maxRetries?: number;
+  retryBaseMs?: number;
+  online?: () => boolean;
+  events?: BrowserEventTarget;
+  visibility?: { hidden: boolean } & BrowserEventTarget;
+}
+
+interface OutboxItem {
+  idempotencyKey: string;
+  input: SubmitLeaderboardEntryInput;
+  attempts: number;
+}
+
+function createIdempotencyKey(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+  return `event-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+/**
+ * Durable, idempotency-protected leaderboard delivery. It is intentionally
+ * opt-in because games decide which results are worth retaining locally.
+ */
+export class DurableLeaderboardOutbox {
+  private readonly storage: LocalSaveStorage | undefined;
+  private readonly key: string;
+  private readonly online: () => boolean;
+  private readonly maxRetries: number;
+  private readonly retryBaseMs: number;
+  private queue: OutboxItem[];
+  private stateValue: LeaderboardOutboxState;
+  private running: Promise<LeaderboardOutboxState> | null = null;
+  private retryTimer: ReturnType<typeof setTimeout> | null = null;
+  private readonly onRetrySignal = () => { void this.flush(); };
+  private readonly onVisible = () => { if (!this.visibility?.hidden) void this.flush(); };
+  private readonly events?: BrowserEventTarget;
+  private readonly visibility?: ({ hidden: boolean } & BrowserEventTarget);
+
+  constructor(private readonly options: DurableLeaderboardOutboxOptions) {
+    this.storage = options.storage ?? defaultStorage();
+    const prefix = options.keyPrefix ?? '@game-platform/leaderboard-outbox/v1';
+    this.key = `${prefix}/${encodeURIComponent(options.userId)}/${encodeURIComponent(options.gameSlug)}`;
+    this.queue = safelyRead<OutboxItem[]>(this.storage, this.key) ?? [];
+    this.online = options.online ?? isOnline;
+    this.maxRetries = options.maxRetries ?? 5;
+    this.retryBaseMs = options.retryBaseMs ?? 1_000;
+    this.events = options.events ?? defaultEvents();
+    this.visibility = options.visibility ?? defaultVisibility();
+    this.stateValue = { status: this.queue.length ? 'queued' : 'accepted', queuedCount: this.queue.length };
+    this.events?.addEventListener('online', this.onRetrySignal);
+    this.visibility?.addEventListener('visibilitychange', this.onVisible);
+  }
+
+  get state(): LeaderboardOutboxState { return this.stateValue; }
+
+  enqueue(input: SubmitLeaderboardEntryInput): string {
+    const idempotencyKey = input.idempotencyKey ?? createIdempotencyKey();
+    this.queue.push({ idempotencyKey, input: { ...input, idempotencyKey }, attempts: 0 });
+    this.persist();
+    this.setState({ status: this.online() ? 'queued' : 'offline', queuedCount: this.queue.length });
+    void this.flush();
+    return idempotencyKey;
+  }
+
+  async recoverAfterReauthentication(): Promise<LeaderboardOutboxState> {
+    const authentication = await this.options.client.auth.revalidate();
+    if (authentication.status === 'reauthentication_required') {
+      this.setState({ status: 'unauthorized', queuedCount: this.queue.length, error: authentication.error });
+      return this.stateValue;
+    }
+    if (authentication.session.user.id !== this.options.userId) {
+      this.setState({
+        status: 'unauthorized', queuedCount: this.queue.length,
+        error: new GamePlatformApiError('Pending events belong to a different player', undefined, 'unauthorized'),
+      });
+      return this.stateValue;
+    }
+    return this.flush(true);
+  }
+
+  async flush(alreadyRevalidated = false): Promise<LeaderboardOutboxState> {
+    if (this.running) {
+      return this.running.then(() => this.stateValue.status === 'offline' && this.queue.length && this.online()
+        ? this.flush(alreadyRevalidated)
+        : this.stateValue);
+    }
+    this.running = this.flushLoop(alreadyRevalidated).finally(() => { this.running = null; });
+    return this.running;
+  }
+
+  dispose(): void {
+    if (this.retryTimer) clearTimeout(this.retryTimer);
+    this.events?.removeEventListener('online', this.onRetrySignal);
+    this.visibility?.removeEventListener('visibilitychange', this.onVisible);
+  }
+
+  private async flushLoop(alreadyRevalidated: boolean): Promise<LeaderboardOutboxState> {
+    let authenticated = alreadyRevalidated;
+    while (this.queue.length) {
+      if (!this.online()) {
+        this.setState({ status: 'offline', queuedCount: this.queue.length });
+        return this.stateValue;
+      }
+      if (!authenticated) {
+        try {
+          const authentication = await this.options.client.auth.revalidate();
+          if (authentication.status === 'reauthentication_required') {
+            this.setState({ status: 'unauthorized', queuedCount: this.queue.length, error: authentication.error });
+            return this.stateValue;
+          }
+          if (authentication.session.user.id !== this.options.userId) {
+            this.setState({ status: 'unauthorized', queuedCount: this.queue.length, error: new GamePlatformApiError('Pending events belong to a different player', undefined, 'unauthorized') });
+            return this.stateValue;
+          }
+          authenticated = true;
+        } catch (error) {
+          return this.retry(this.asApiError(error));
+        }
+      }
+      const item = this.queue[0];
+      try {
+        await this.options.client.leaderboards.submit(this.options.gameSlug, item.input);
+        this.queue.shift();
+        this.persist();
+        this.setState({ status: this.queue.length ? 'queued' : 'accepted', queuedCount: this.queue.length });
+      } catch (error) {
+        const apiError = this.asApiError(error);
+        if (apiError.code === 'network' || apiError.code === 'timeout') return this.retry(apiError);
+        if (apiError.code === 'unauthorized') {
+          this.setState({ status: 'unauthorized', queuedCount: this.queue.length, error: apiError });
+        } else {
+          this.setState({ status: 'permanently_rejected', queuedCount: this.queue.length, error: apiError });
+        }
+        return this.stateValue;
+      }
+    }
+    return this.stateValue;
+  }
+
+  private retry(error: GamePlatformApiError): LeaderboardOutboxState {
+    const item = this.queue[0];
+    if (!item) return this.stateValue;
+    item.attempts += 1;
+    this.persist();
+    if (!this.online()) {
+      this.setState({ status: 'offline', queuedCount: this.queue.length, error });
+      return this.stateValue;
+    }
+    if (item.attempts > this.maxRetries) {
+      // Network exhaustion is still recoverable (including after reload); only
+      // a server validation/rejection marks an event permanently rejected.
+      this.setState({ status: 'queued', queuedCount: this.queue.length, error });
+      return this.stateValue;
+    }
+    this.setState({ status: 'queued', queuedCount: this.queue.length, error });
+    if (this.retryTimer) clearTimeout(this.retryTimer);
+    this.retryTimer = setTimeout(() => { void this.flush(); }, this.retryBaseMs * 2 ** (item.attempts - 1));
+    return this.stateValue;
+  }
+
+  private persist(): void {
+    if (this.queue.length) safelyWrite(this.storage, this.key, this.queue);
+    else safelyRemove(this.storage, this.key);
+  }
+
+  private setState(state: LeaderboardOutboxState): void { this.stateValue = state; }
+
+  private asApiError(error: unknown): GamePlatformApiError {
+    return error instanceof GamePlatformApiError
+      ? error
+      : new GamePlatformApiError('Unexpected leaderboard delivery failure', undefined, 'api', error);
+  }
+}
+
+export function createDurableLeaderboardOutbox(options: DurableLeaderboardOutboxOptions): DurableLeaderboardOutbox {
+  return new DurableLeaderboardOutbox(options);
+}
+
+export type GameSessionLifecycleStatus = 'idle' | 'active' | 'hidden' | 'reauthentication_required' | 'offline' | 'failed';
+
+export interface GameSessionLifecycle {
+  readonly status: GameSessionLifecycleStatus;
+  start(): Promise<GameSessionLifecycleStatus>;
+  end(): Promise<GameSessionLifecycleStatus>;
+  dispose(): Promise<void>;
+}
+
+export interface GameSessionLifecycleOptions {
+  client: {
+    auth: Pick<GamePlatformClient['auth'], 'revalidate'>;
+    sessions: GamePlatformClient['sessions'];
+  };
+  gameSlug: string;
+  heartbeatIntervalMs?: number;
+  events?: BrowserEventTarget;
+  visibility?: { hidden: boolean } & BrowserEventTarget;
+}
+
+/**
+ * Browser-aware play-session coordination. It stops telemetry while hidden
+ * and always revalidates the cookie session before beginning visible play.
+ */
+export function createGameSessionLifecycle(options: GameSessionLifecycleOptions): GameSessionLifecycle {
+  const events = options.events ?? defaultEvents();
+  const visibility = options.visibility ?? defaultVisibility();
+  const heartbeatIntervalMs = options.heartbeatIntervalMs ?? 30_000;
+  let status: GameSessionLifecycleStatus = visibility?.hidden ? 'hidden' : 'idle';
+  let handle: GameSessionHandle | null = null;
+  let serial = Promise.resolve<GameSessionLifecycleStatus>(status);
+  let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+
+  const clearHeartbeat = () => {
+    if (heartbeatTimer) clearInterval(heartbeatTimer);
+    heartbeatTimer = null;
+  };
+  const run = (operation: () => Promise<GameSessionLifecycleStatus>) => {
+    serial = serial.then(operation, operation);
+    return serial;
+  };
+  const start = () => run(async () => {
+    if (visibility?.hidden) return (status = 'hidden');
+    if (handle) return (status = 'active');
+    try {
+      const authentication = await options.client.auth.revalidate();
+      if (authentication.status === 'reauthentication_required') return (status = 'reauthentication_required');
+      const started = await options.client.sessions.start(options.gameSlug);
+      const sessionId = started.session_id || started.id;
+      handle = {
+        sessionId,
+        heartbeat: () => options.client.sessions.heartbeat(sessionId).then(() => undefined),
+        end: () => options.client.sessions.end(sessionId).then(() => undefined),
+      };
+      status = 'active';
+      heartbeatTimer = setInterval(() => { void heartbeat(); }, heartbeatIntervalMs);
+      return status;
+    } catch (error) {
+      const apiError = error instanceof GamePlatformApiError ? error : new GamePlatformApiError('Unable to start game session', undefined, 'api', error);
+      status = apiError.code === 'unauthorized' ? 'reauthentication_required'
+        : apiError.code === 'network' || apiError.code === 'timeout' ? 'offline' : 'failed';
+      return status;
+    }
+  });
+  const end = () => run(async () => {
+    clearHeartbeat();
+    const current = handle;
+    handle = null;
+    if (!current) return (status = visibility?.hidden ? 'hidden' : 'idle');
+    try {
+      await current.end();
+    } catch (error) {
+      const apiError = error instanceof GamePlatformApiError ? error : undefined;
+      if (apiError?.code !== 'not_found' && apiError?.code !== 'conflict' && apiError?.code !== 'unauthorized') status = 'offline';
+    }
+    return (status = visibility?.hidden ? 'hidden' : 'idle');
+  });
+  const heartbeat = () => {
+    const current = handle;
+    if (!current || visibility?.hidden) return;
+    void current.heartbeat().catch((error: unknown) => {
+      const apiError = error instanceof GamePlatformApiError ? error : new GamePlatformApiError('Game-session heartbeat failed', undefined, 'api', error);
+      if (apiError.code === 'not_found' || apiError.code === 'conflict') {
+        handle = null;
+        clearHeartbeat();
+        void start();
+      } else if (apiError.code === 'unauthorized') {
+        handle = null;
+        clearHeartbeat();
+        status = 'reauthentication_required';
+      } else status = 'offline';
+    });
+  };
+  const onVisibility = () => {
+    if (visibility?.hidden) void end();
+    else void start();
+  };
+  const onPageHide = () => { void end(); };
+  visibility?.addEventListener('visibilitychange', onVisibility);
+  events?.addEventListener('pagehide', onPageHide);
+  return {
+    get status() { return status; },
+    start,
+    end,
+    async dispose() {
+      visibility?.removeEventListener('visibilitychange', onVisibility);
+      events?.removeEventListener('pagehide', onPageHide);
+      await end();
+    },
+  };
 }

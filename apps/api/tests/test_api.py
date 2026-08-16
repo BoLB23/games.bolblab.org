@@ -12,7 +12,10 @@ from sqlalchemy.exc import IntegrityError
 
 import app.db.session as db_session
 from app.db.base import Base
+from app.models.auth import UserSession
+from app.models.common import utc_now
 from app.models.game import Game
+from app.models.leaderboard import LeaderboardDefinition
 from app.models.user import ExternalIdentity
 from app.services.seed import seed_database
 
@@ -92,6 +95,21 @@ def test_development_login_me_and_logout(client: TestClient) -> None:
     assert client.get("/api/v1/auth/me").status_code == 401
 
 
+def test_session_revalidation_reports_fixed_expiry_and_rejects_an_expired_cookie(
+    authenticated_client: TestClient,
+) -> None:
+    status = authenticated_client.get("/api/v1/auth/session")
+    assert status.status_code == 200
+    assert status.json()["is_sliding"] is False
+    assert status.json()["expires_at"]
+    with db_session.SessionLocal() as session:
+        current = session.scalar(select(UserSession))
+        assert current is not None
+        current.expires_at = utc_now().replace(year=2020)
+        session.commit()
+    assert authenticated_client.get("/api/v1/auth/session").status_code == 401
+
+
 def test_development_login_is_disabled_outside_development(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("APP_ENV", "production")
     from app.core.config import get_settings
@@ -148,6 +166,26 @@ def test_flappy_mike_is_playable_and_publishes_a_distance_board(
     )
     assert submitted.status_code == 200
     assert submitted.json()["entry"]["value"] == 2_500
+
+
+def test_leaderboard_submission_idempotency_prevents_duplicate_mutation(
+    authenticated_client: TestClient,
+) -> None:
+    with db_session.SessionLocal() as session:
+        board = session.scalar(select(LeaderboardDefinition).where(LeaderboardDefinition.key == "distance"))
+        assert board is not None
+        board.aggregation = "sum"
+        session.commit()
+    payload = {"value": 2_500, "metadata": {"run": "one"}, "idempotency_key": "run-123"}
+    first = authenticated_client.post("/api/v1/games/flappy-mike/leaderboards/distance/entries", json=payload)
+    second = authenticated_client.post("/api/v1/games/flappy-mike/leaderboards/distance/entries", json=payload)
+    assert first.status_code == second.status_code == 200
+    assert first.json()["entry"]["value"] == second.json()["entry"]["value"]
+    changed = authenticated_client.post(
+        "/api/v1/games/flappy-mike/leaderboards/distance/entries",
+        json={**payload, "value": 2_501},
+    )
+    assert changed.status_code == 409
 
 
 def test_milton_estates_is_disabled_by_default_and_rejects_platform_use(

@@ -13,6 +13,7 @@ from app.models import (  # noqa: F401
     GameSession,
     LeaderboardDefinition,
     LeaderboardEntry,
+    LeaderboardSubmission,
     PlayerProfile,
     User,
 )

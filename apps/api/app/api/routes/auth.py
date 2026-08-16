@@ -6,13 +6,18 @@ from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_current_user, require_development
 from app.auth.oidc import OidcError, complete_login, start_login
-from app.auth.session import create_session, revoke_session
+from app.auth.session import create_session, get_session, revoke_session
 from app.core.config import Settings, get_settings
 from app.db.session import get_db_session
 from app.models.common import utc_now
 from app.models.user import User
 from app.repositories.users import get_user, list_active_users
-from app.schemas.auth import DevelopmentUserResponse, DevLoginRequest, UserResponse
+from app.schemas.auth import (
+    DevelopmentUserResponse,
+    DevLoginRequest,
+    SessionStatusResponse,
+    UserResponse,
+)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -74,6 +79,20 @@ def oidc_callback(
 @router.get("/me", response_model=UserResponse)
 def current_user(user: User = Depends(get_current_user)) -> User:
     return user
+
+
+@router.get("/session", response_model=SessionStatusResponse)
+def session_status(
+    request: Request,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_db_session),
+    settings: Settings = Depends(get_settings),
+) -> dict[str, object]:
+    """Revalidate the HTTP-only-cookie session without triggering an OIDC flow."""
+    current = get_session(session, request.cookies.get(settings.session_cookie_name))
+    if current is None:  # Defensive: get_current_user has already checked this.
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication is required")
+    return {"user": user, "expires_at": current.expires_at, "is_sliding": False}
 
 
 @router.get("/dev/users", response_model=list[DevelopmentUserResponse])

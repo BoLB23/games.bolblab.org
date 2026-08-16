@@ -86,3 +86,24 @@ class LeaderboardEntry(Base):
 
     definition: Mapped[LeaderboardDefinition] = relationship(back_populates="entries")
     user: Mapped[User] = relationship(back_populates="leaderboard_entries")
+
+
+class LeaderboardSubmission(Base):
+    """Records a client mutation key so retrying an accepted submission is side-effect free."""
+
+    __tablename__ = "leaderboard_submissions"
+    __table_args__ = (
+        UniqueConstraint("leaderboard_id", "user_id", "idempotency_key", name="uq_leaderboard_submissions_key"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    leaderboard_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("leaderboard_definitions.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    idempotency_key: Mapped[str] = mapped_column(String(128), nullable=False)
+    value: Mapped[float] = mapped_column(Float, nullable=False)
+    metadata_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
