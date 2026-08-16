@@ -1,7 +1,7 @@
 """add durable leaderboard submission idempotency keys
 
 Revision ID: 20260816_06
-Revises: 20260807_04
+Revises: 20260809_05
 Create Date: 2026-08-16
 """
 
@@ -9,7 +9,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision = "20260816_06"
-down_revision = "20260807_04"
+down_revision = "20260809_05"
 branch_labels = None
 depends_on = None
 
