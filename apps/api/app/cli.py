@@ -25,6 +25,9 @@ def main() -> None:
                 milton_estates_launch_url=settings.milton_estates_launch_url,
                 milton_estates_enabled=settings.milton_estates_enabled,
                 milton_estates_cloud_saves_enabled=settings.milton_estates_cloud_saves_enabled,
+                disc_golf_with_friends_origin=settings.disc_golf_with_friends_origin,
+                disc_golf_with_friends_launch_url=settings.disc_golf_with_friends_launch_url,
+                disc_golf_with_friends_enabled=settings.disc_golf_with_friends_enabled,
                 include_development_data=not args.production,
             )
         print("Seed data is up to date.")

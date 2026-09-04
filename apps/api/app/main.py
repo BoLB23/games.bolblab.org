@@ -13,6 +13,7 @@ from app.api.routes import (
     game_sessions,
     games,
     leaderboards,
+    multiplayer,
     player,
     presence,
     saves,
@@ -46,6 +47,7 @@ def create_app() -> FastAPI:
     api.include_router(presence.router)
     api.include_router(game_sessions.router)
     api.include_router(leaderboards.router)
+    api.include_router(multiplayer.router)
     api.include_router(saves.router)
     api.include_router(games.router)
     app.mount("/api/v1", api)

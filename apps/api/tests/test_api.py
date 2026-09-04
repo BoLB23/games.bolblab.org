@@ -139,7 +139,12 @@ def test_games_are_ordered_and_hidden_games_are_excluded(authenticated_client: T
         )
         session.commit()
     games = authenticated_client.get("/api/v1/games").json()
-    assert [game["slug"] for game in games] == ["milton-estates", "sample-game", "flappy-mike"]
+    assert [game["slug"] for game in games] == [
+        "milton-estates",
+        "sample-game",
+        "flappy-mike",
+        "disc-golf-with-friends",
+    ]
     assert games[0]["is_featured"] is True
     assert games[0]["cover_image_url"] == "/assets/milton-estates-cover.png"
     assert authenticated_client.get("/api/v1/games/hidden-game").status_code == 404
@@ -267,7 +272,7 @@ def test_seed_is_idempotent(client: TestClient) -> None:
         seed_database(session, "http://localhost:5174")
         seed_database(session, "http://localhost:5174")
         assert session.execute(text("SELECT count(*) FROM users")).scalar_one() == 5
-        assert session.execute(text("SELECT count(*) FROM games")).scalar_one() == 3
+        assert session.execute(text("SELECT count(*) FROM games")).scalar_one() == 4
 
 
 def test_production_seed_upserts_catalog_without_development_users(tmp_path: Path) -> None:

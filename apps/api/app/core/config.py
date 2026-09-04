@@ -43,6 +43,9 @@ class Settings(BaseSettings):
     milton_estates_launch_url: str | None = None
     milton_estates_enabled: bool = False
     milton_estates_cloud_saves_enabled: bool = False
+    disc_golf_with_friends_origin: str | None = None
+    disc_golf_with_friends_launch_url: str | None = None
+    disc_golf_with_friends_enabled: bool = False
     presence_window_seconds: int = Field(default=120, ge=30, le=3600)
     game_session_max_gap_seconds: int = Field(default=120, ge=30, le=3600)
     leaderboard_max_value: float = Field(default=1_000_000_000, gt=0)
@@ -92,12 +95,17 @@ class Settings(BaseSettings):
         origins = [origin.strip() for origin in value.split(",") if origin.strip()]
         return ",".join(cls._validate_origin(origin) for origin in origins)
 
-    @field_validator("milton_estates_origin")
+    @field_validator("milton_estates_origin", "disc_golf_with_friends_origin")
     @classmethod
-    def validate_milton_estates_origin(cls, value: str | None) -> str | None:
+    def validate_optional_game_origin(cls, value: str | None) -> str | None:
         return cls._validate_origin(value) if value else None
 
-    @field_validator("sample_game_launch_url", "flappy_mike_launch_url", "milton_estates_launch_url")
+    @field_validator(
+        "sample_game_launch_url",
+        "flappy_mike_launch_url",
+        "milton_estates_launch_url",
+        "disc_golf_with_friends_launch_url",
+    )
     @classmethod
     def validate_game_launch_url(cls, value: str | None) -> str | None:
         if value is None:
@@ -121,6 +129,8 @@ class Settings(BaseSettings):
             raise ValueError("MILTON_ESTATES_ORIGIN is required when MILTON_ESTATES_ENABLED is true")
         if self.milton_estates_cloud_saves_enabled and not self.milton_estates_enabled:
             raise ValueError("MILTON_ESTATES_ENABLED must be true when cloud saves are enabled")
+        if self.disc_golf_with_friends_enabled and not self.disc_golf_with_friends_origin:
+            raise ValueError("DISC_GOLF_WITH_FRIENDS_ORIGIN is required when the game is enabled")
         if self.auth_mode == "oidc":
             required = {
                 "OIDC_ISSUER": self.oidc_issuer,
@@ -173,6 +183,8 @@ class Settings(BaseSettings):
         """Exact browser origins permitted to make credentialed API requests."""
         origins = [self.catalog_origin, self.sample_game_origin, self.flappy_mike_origin]
         origins.extend(origin for origin in self.game_cors_allowed_origins.split(",") if origin)
+        if self.disc_golf_with_friends_origin:
+            origins.append(self.disc_golf_with_friends_origin)
         if self.app_env == "development":
             origins.extend(self._loopback_alias(origin) for origin in list(origins))
         return list(dict.fromkeys(origins))

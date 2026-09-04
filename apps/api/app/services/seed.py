@@ -246,6 +246,9 @@ def _seed_catalog(
     milton_estates_launch_url: str | None,
     milton_estates_enabled: bool,
     milton_estates_cloud_saves_enabled: bool,
+    disc_golf_with_friends_origin: str | None,
+    disc_golf_with_friends_launch_url: str | None,
+    disc_golf_with_friends_enabled: bool,
     preserve_existing_game_state: bool = False,
 ) -> tuple[Game, Game, Game]:
     sample_game = _upsert_game(
@@ -314,6 +317,29 @@ def _seed_catalog(
         is_featured=True,
         sort_order=20,
     )
+    _upsert_game(
+        session,
+        "disc-golf-with-friends",
+        title="Disc Golf with Friends",
+        short_description="A quick, friendly three-hole disc golf round for the crew.",
+        description=(
+            "Create a private room, invite the crew, and play a short three-hole round of disc golf together."
+        ),
+        cover_image_url=None,
+        launch_url=(disc_golf_with_friends_launch_url or disc_golf_with_friends_origin or "")
+        if disc_golf_with_friends_enabled
+        else "",
+        status="playable" if disc_golf_with_friends_enabled else "coming_soon",
+        version="Room-code multiplayer" if disc_golf_with_friends_enabled else "In development",
+        minimum_players=2,
+        maximum_players=10,
+        supports_cloud_saves=False,
+        supports_leaderboards=False,
+        supports_multiplayer=disc_golf_with_friends_enabled,
+        is_featured=False,
+        sort_order=25,
+        preserve_existing_state=preserve_existing_game_state,
+    )
     _upsert_leaderboard(
         session, game=sample_game, key="orb-touches", display_name="Orb touches",
         description="Highest orb-touch total in a single sample-game run.", unit="points",
@@ -343,6 +369,9 @@ def seed_database(
     milton_estates_launch_url: str | None = None,
     milton_estates_enabled: bool = False,
     milton_estates_cloud_saves_enabled: bool = False,
+    disc_golf_with_friends_origin: str | None = None,
+    disc_golf_with_friends_launch_url: str | None = None,
+    disc_golf_with_friends_enabled: bool = False,
     include_development_data: bool = True,
 ) -> None:
     """Upsert deterministic development data and optional game integrations.
@@ -355,6 +384,8 @@ def seed_database(
         raise ValueError("MILTON_ESTATES_ORIGIN is required when MILTON_ESTATES_ENABLED is true")
     if milton_estates_cloud_saves_enabled and not milton_estates_enabled:
         raise ValueError("MILTON_ESTATES_ENABLED must be true when cloud saves are enabled")
+    if disc_golf_with_friends_enabled and not disc_golf_with_friends_origin:
+        raise ValueError("DISC_GOLF_WITH_FRIENDS_ORIGIN is required when the game is enabled")
     if not include_development_data:
         _remove_development_users(session)
         _seed_catalog(
@@ -365,6 +396,9 @@ def seed_database(
             milton_estates_launch_url=milton_estates_launch_url,
             milton_estates_enabled=milton_estates_enabled,
             milton_estates_cloud_saves_enabled=milton_estates_cloud_saves_enabled,
+            disc_golf_with_friends_origin=disc_golf_with_friends_origin,
+            disc_golf_with_friends_launch_url=disc_golf_with_friends_launch_url,
+            disc_golf_with_friends_enabled=disc_golf_with_friends_enabled,
             preserve_existing_game_state=True,
         )
         session.commit()
@@ -527,6 +561,28 @@ def seed_database(
         supports_multiplayer=False,
         is_featured=True,
         sort_order=20,
+    )
+    _upsert_game(
+        session,
+        "disc-golf-with-friends",
+        title="Disc Golf with Friends",
+        short_description="A quick, friendly three-hole disc golf round for the crew.",
+        description=(
+            "Create a private room, invite the crew, and play a short three-hole round of disc golf together."
+        ),
+        cover_image_url=None,
+        launch_url=(disc_golf_with_friends_launch_url or disc_golf_with_friends_origin or "")
+        if disc_golf_with_friends_enabled
+        else "",
+        status="playable" if disc_golf_with_friends_enabled else "coming_soon",
+        version="Room-code multiplayer" if disc_golf_with_friends_enabled else "In development",
+        minimum_players=2,
+        maximum_players=10,
+        supports_cloud_saves=False,
+        supports_leaderboards=False,
+        supports_multiplayer=disc_golf_with_friends_enabled,
+        is_featured=False,
+        sort_order=25,
     )
 
     orb_touches = _upsert_leaderboard(
