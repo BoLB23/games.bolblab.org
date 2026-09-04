@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timedelta
+from typing import Any, cast
 
-from sqlalchemy import select
+from sqlalchemy import select, update
+from sqlalchemy.engine import CursorResult
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings
@@ -50,14 +52,31 @@ def finalize_abandoned_sessions(session: Session, *, settings: Settings, now: da
             )
         )
     )
+    finalized_count = 0
     for game_session in active_sessions:
-        game_session.credited_playtime_seconds += float(settings.game_session_max_gap_seconds)
-        game_session.ended_at = as_utc(game_session.last_heartbeat_at) + timedelta(
+        last_heartbeat = as_utc(game_session.last_heartbeat_at)
+        ended_at = last_heartbeat + timedelta(
             seconds=settings.game_session_max_gap_seconds
         )
+        # Guard the transition so two cleanup requests cannot credit the same
+        # abandoned session twice.
+        result = cast(CursorResult[Any], session.execute(
+            update(GameSession)
+            .where(
+                GameSession.id == game_session.id,
+                GameSession.ended_at.is_(None),
+                GameSession.last_heartbeat_at == game_session.last_heartbeat_at,
+            )
+            .values(
+                credited_playtime_seconds=GameSession.credited_playtime_seconds
+                + float(settings.game_session_max_gap_seconds),
+                ended_at=ended_at,
+            )
+        ))
+        finalized_count += result.rowcount
     if active_sessions:
         session.commit()
-    return len(active_sessions)
+    return finalized_count
 
 
 def start_game_session(
@@ -98,38 +117,85 @@ def heartbeat_game_session(
     timestamp = utc_now()
     elapsed = (as_utc(timestamp) - as_utc(game_session.last_heartbeat_at)).total_seconds()
     if elapsed > settings.game_session_max_gap_seconds:
-        game_session.credited_playtime_seconds += float(settings.game_session_max_gap_seconds)
-        game_session.ended_at = as_utc(game_session.last_heartbeat_at) + timedelta(
+        old_heartbeat = game_session.last_heartbeat_at
+        ended_at = as_utc(old_heartbeat) + timedelta(
             seconds=settings.game_session_max_gap_seconds
         )
-        session.commit()
+        expired_result = cast(CursorResult[Any], session.execute(
+            update(GameSession)
+            .where(
+                GameSession.id == game_session.id,
+                GameSession.ended_at.is_(None),
+                GameSession.last_heartbeat_at == old_heartbeat,
+            )
+            .values(
+                credited_playtime_seconds=GameSession.credited_playtime_seconds
+                + float(settings.game_session_max_gap_seconds),
+                ended_at=ended_at,
+            )
+        ))
+        if expired_result.rowcount == 1:
+            session.commit()
+        else:
+            session.rollback()
         raise GameSessionError("Game session expired after missing heartbeats", status_code=409)
-    game_session.credited_playtime_seconds += _credit_seconds(
-        game_session, timestamp, settings.game_session_max_gap_seconds
-    )
-    game_session.last_heartbeat_at = timestamp
+    old_heartbeat = game_session.last_heartbeat_at
+    credited = _credit_seconds(game_session, timestamp, settings.game_session_max_gap_seconds)
+    result = cast(CursorResult[Any], session.execute(
+        update(GameSession)
+        .where(
+            GameSession.id == game_session.id,
+            GameSession.ended_at.is_(None),
+            GameSession.last_heartbeat_at == old_heartbeat,
+        )
+        .values(
+            credited_playtime_seconds=GameSession.credited_playtime_seconds + credited,
+            last_heartbeat_at=timestamp,
+        )
+    ))
+    if result.rowcount != 1:
+        session.rollback()
+        raise GameSessionError("Game session changed; retry with the latest session", status_code=409)
     session.commit()
     session.refresh(game_session)
     return game_session
 
 
 def end_game_session(
-    session: Session, *, game_session: GameSession, settings: Settings
+    session: Session, *, game_session: GameSession, settings: Settings, _attempt: int = 0
 ) -> GameSession:
     if game_session.ended_at is not None:
         return game_session
     timestamp = utc_now()
     elapsed = (as_utc(timestamp) - as_utc(game_session.last_heartbeat_at)).total_seconds()
-    game_session.credited_playtime_seconds += _credit_seconds(
-        game_session, timestamp, settings.game_session_max_gap_seconds
-    )
+    old_heartbeat = game_session.last_heartbeat_at
+    credited = _credit_seconds(game_session, timestamp, settings.game_session_max_gap_seconds)
     if elapsed > settings.game_session_max_gap_seconds:
-        game_session.ended_at = as_utc(game_session.last_heartbeat_at) + timedelta(
+        ended_at = as_utc(old_heartbeat) + timedelta(
             seconds=settings.game_session_max_gap_seconds
         )
+        values = {"credited_playtime_seconds": GameSession.credited_playtime_seconds + credited, "ended_at": ended_at}
     else:
-        game_session.last_heartbeat_at = timestamp
-        game_session.ended_at = timestamp
+        values = {
+            "credited_playtime_seconds": GameSession.credited_playtime_seconds + credited,
+            "last_heartbeat_at": timestamp,
+            "ended_at": timestamp,
+        }
+    result = cast(CursorResult[Any], session.execute(
+        update(GameSession).where(
+            GameSession.id == game_session.id,
+            GameSession.ended_at.is_(None),
+            GameSession.last_heartbeat_at == old_heartbeat,
+        ).values(**values)
+    ))
+    if result.rowcount != 1:
+        session.rollback()
+        session.refresh(game_session)
+        if game_session.ended_at is not None:
+            return game_session
+        if _attempt < 3:
+            return end_game_session(session, game_session=game_session, settings=settings, _attempt=_attempt + 1)
+        raise GameSessionError("Game session changed; retry with the latest session", status_code=409)
     session.commit()
     session.refresh(game_session)
     return game_session

@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models.common import utc_now
@@ -69,7 +70,15 @@ def get_or_create_player(session: Session, user: User) -> PlayerProfile:
     appearance = default_appearance(user)
     profile = PlayerProfile(user_id=user.id, **appearance.__dict__)
     session.add(profile)
-    session.flush()
+    try:
+        session.flush()
+    except IntegrityError:
+        # Another request may provision the one-profile-per-user row between
+        # our read and insert. Reuse that row instead of surfacing a 500.
+        session.rollback()
+        profile = session.scalar(select(PlayerProfile).where(PlayerProfile.user_id == user.id))
+        if profile is None:
+            raise
     return profile
 
 

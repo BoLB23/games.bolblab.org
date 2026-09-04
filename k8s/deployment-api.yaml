@@ -26,10 +26,12 @@ spec:
           command:
             - /bin/sh
             - -ec
-            - /app/.venv/bin/alembic upgrade head && /app/.venv/bin/python -m app.cli seed
+            - /app/.venv/bin/alembic upgrade head && /app/.venv/bin/python -m app.cli seed --production
           env:
             - name: APP_ENV
-              value: development
+              value: production
+            - name: AUTH_MODE
+              value: oidc
             - name: DATABASE_URL
               value: sqlite:////data/game-platform.db
             - name: SESSION_SECRET
@@ -38,17 +40,17 @@ spec:
                   name: games-secrets
                   key: SESSION_SECRET
             - name: SESSION_COOKIE_SECURE
-              value: "false"
+              value: "true"
             - name: CATALOG_ORIGIN
-              value: http://games.bolblab.org
+              value: https://games.bolblab.org
             - name: SAMPLE_GAME_ORIGIN
-              value: http://games.bolblab.org
+              value: https://games.bolblab.org
             - name: SAMPLE_GAME_LAUNCH_URL
-              value: http://games.bolblab.org/games/sample-game/
+              value: https://games.bolblab.org/games/sample-game/
             - name: FLAPPY_MIKE_ORIGIN
-              value: http://games.bolblab.org
+              value: https://games.bolblab.org
             - name: FLAPPY_MIKE_LAUNCH_URL
-              value: http://games.bolblab.org/games/flappy-mike/
+              value: https://games.bolblab.org/games/flappy-mike/
           volumeMounts:
             - name: data
               mountPath: /data
@@ -61,7 +63,9 @@ spec:
               containerPort: 8000
           env:
             - name: APP_ENV
-              value: development
+              value: production
+            - name: AUTH_MODE
+              value: oidc
             - name: DATABASE_URL
               value: sqlite:////data/game-platform.db
             - name: SESSION_SECRET
@@ -70,17 +74,17 @@ spec:
                   name: games-secrets
                   key: SESSION_SECRET
             - name: SESSION_COOKIE_SECURE
-              value: "false"
+              value: "true"
             - name: CATALOG_ORIGIN
-              value: http://games.bolblab.org
+              value: https://games.bolblab.org
             - name: SAMPLE_GAME_ORIGIN
-              value: http://games.bolblab.org
+              value: https://games.bolblab.org
             - name: SAMPLE_GAME_LAUNCH_URL
-              value: http://games.bolblab.org/games/sample-game/
+              value: https://games.bolblab.org/games/sample-game/
             - name: FLAPPY_MIKE_ORIGIN
-              value: http://games.bolblab.org
+              value: https://games.bolblab.org
             - name: FLAPPY_MIKE_LAUNCH_URL
-              value: http://games.bolblab.org/games/flappy-mike/
+              value: https://games.bolblab.org/games/flappy-mike/
           startupProbe:
             httpGet:
               path: /api/v1/health

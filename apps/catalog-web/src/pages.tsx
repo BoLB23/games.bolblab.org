@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { Link, Navigate, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import type {
   ClanRole,
   LeaderboardEntry,
@@ -194,8 +194,9 @@ function LeaderboardRow({ entry, unit, current }: { entry: LeaderboardEntry; uni
 
 export function LeaderboardsPage() {
   const definitions = useQuery({ queryKey: ['leaderboards'], queryFn: client.leaderboards.list });
-  const [selectedGame, setSelectedGame] = useState('');
-  const [selectedKey, setSelectedKey] = useState('');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [selectedGame, setSelectedGame] = useState(() => searchParams.get('game') ?? '');
+  const [selectedKey, setSelectedKey] = useState(() => searchParams.get('board') ?? '');
   const games = useMemo(() => [...new Map((definitions.data ?? []).map((definition) => [definition.game_slug, definition.game_title])).entries()], [definitions.data]);
   const filtered = useMemo(() => (definitions.data ?? []).filter((definition) => !selectedGame || definition.game_slug === selectedGame), [definitions.data, selectedGame]);
   useEffect(() => {
@@ -205,6 +206,11 @@ export function LeaderboardsPage() {
     if (filtered.length && !filtered.some((definition) => definition.key === selectedKey)) setSelectedKey(filtered[0].key);
   }, [filtered, selectedKey]);
   const selected = filtered.find((definition) => definition.key === selectedKey) ?? filtered[0];
+  useEffect(() => {
+    if (!selected) return;
+    const next = new URLSearchParams({ game: selected.game_slug, board: selected.key });
+    if (next.toString() !== searchParams.toString()) setSearchParams(next, { replace: true });
+  }, [searchParams, selected, setSearchParams]);
   const board = useQuery({ queryKey: ['leaderboard', selected?.game_slug, selected?.key], queryFn: () => client.leaderboards.get(selected!.key, selected!.game_slug, 50), enabled: Boolean(selected) });
   if (definitions.isLoading) return <main><Loading label="Pulling the latest rivalries…" /></main>;
   if (definitions.isError) return <main><ErrorState>Leaderboards are unavailable right now.</ErrorState></main>;
@@ -212,10 +218,10 @@ export function LeaderboardsPage() {
 }
 
 export function ProfilePage() {
-  const { user, signOut } = useAuth(); const navigate = useNavigate();
+  const { user, signOut } = useAuth(); const navigate = useNavigate(); const [logoutError, setLogoutError] = useState<string | null>(null);
   if (!user) return null;
-  const onLogout = async (event: FormEvent) => { event.preventDefault(); await signOut(); navigate('/login'); };
-  return <main className="narrow"><span className="kicker">Account profile</span><h1>{user.display_name}</h1><dl><div><dt>Email</dt><dd>{user.email ?? 'Not provided'}</dd></div><div><dt>Clan role</dt><dd><RoleBadge role={user.role} /></dd></div><div><dt>Last login</dt><dd>{user.last_login_at ? parsePlatformDate(user.last_login_at).toLocaleString() : 'This session'}</dd></div></dl><p className="notice">Your shared appearance lives in <Link to="/my-player">My Player</Link>. Games can read it through the platform SDK without knowing how authentication works.</p><form onSubmit={onLogout}><button>Log out</button></form></main>;
+  const onLogout = async (event: FormEvent) => { event.preventDefault(); setLogoutError(null); try { await signOut(); navigate('/login'); } catch { setLogoutError('Could not log out. Please try again.'); } };
+  return <main className="narrow"><span className="kicker">Account profile</span><h1>{user.display_name}</h1><dl><div><dt>Email</dt><dd>{user.email ?? 'Not provided'}</dd></div><div><dt>Clan role</dt><dd><RoleBadge role={user.role} /></dd></div><div><dt>Last login</dt><dd>{user.last_login_at ? parsePlatformDate(user.last_login_at).toLocaleString() : 'This session'}</dd></div></dl><p className="notice">Your shared appearance lives in <Link to="/my-player">My Player</Link>. Games can read it through the platform SDK without knowing how authentication works.</p>{logoutError && <ErrorState>{logoutError}</ErrorState>}<form onSubmit={onLogout}><button>Log out</button></form></main>;
 }
 
 export function NotFoundPage() { return <main className="narrow"><h1>Page not found</h1><Link className="button" to="/games">Return to the collection</Link></main>; }

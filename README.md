@@ -95,12 +95,18 @@ scripts/deploy --context <kubectl-context> --tag <image-tag>
 ```
 
 Production OIDC mode is the default and requires an explicit `--context`.
-Use `--development` only for an intentional non-OIDC deployment. Use
-`--image-repo <repository>` only when overriding the default
+The deploy script does not apply development auth to a cluster. Use `npm run
+dev` for local development, or render the explicit development overlay for a
+private local cluster. Use `--image-repo <repository>` only when overriding the default
 `ghcr.io/bolb23/games.bolblab.org` image base.
-The app is served at `http://games.bolblab.org`. If the existing
-`games-bolblab-org-tls` secret is present, the deploy script uses it;
-otherwise it leaves the ingress HTTP-only.
+The production app is served at `https://games.bolblab.org`; the base manifest
+fails closed without the OIDC secret/configuration and TLS secret. For a local
+seeded player-picker deployment, render and apply the explicit development
+overlay instead:
+
+```bash
+kubectl kustomize --load-restrictor LoadRestrictionsNone k8s/overlays/development | kubectl apply -f -
+```
 
 The API currently keeps SQLite data in a 1 GiB `games-data` PVC and runs its
 migrations plus idempotent seed step before startup. This is suitable for the
@@ -108,11 +114,10 @@ small internal deployment only; move to PostgreSQL before increasing replicas.
 
 ### Production Google OIDC overlay
 
-The default manifests remain an internal HTTP/development deployment, so they
-continue to use the seeded player picker. Do not turn that deployment into OIDC
-by changing individual environment values: secure `__Host-` cookies require
-HTTPS. Instead, use the explicit [`k8s/overlays/google-oidc`](k8s/overlays/google-oidc)
-overlay after TLS is working.
+The default API manifest is production OIDC and fails closed until its required
+secret and ConfigMap values are present. Use the explicit
+[`k8s/overlays/google-oidc`](k8s/overlays/google-oidc) overlay after TLS is
+working; secure `__Host-` cookies require HTTPS.
 
 1. Register a Google OAuth Web application. Its authorized redirect URI must be
    exactly `https://<catalog-host>/api/v1/auth/callback`.

@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
+from sqlalchemy import select
 
 import app.db.session as db_session
 from app.auth.session import get_session
 from app.core.config import Settings, get_settings
+from app.models.game import Game
 from app.models.user import User
 from app.repositories.users import get_user
 from app.services.multiplayer import room_manager
@@ -29,12 +31,23 @@ async def disc_golf_multiplayer(
     settings: Settings = Depends(get_settings),
 ) -> None:
     origin = websocket.headers.get("origin")
-    if origin not in settings.cors_allowed_origins:
+    # CORS is a broad browser transport policy. Multiplayer has a narrower
+    # authority boundary: only the origin configured for this game may open
+    # its room socket. This remains strict even when other games are allowed
+    # by GAME_CORS_ALLOWED_ORIGINS.
+    if not origin or not settings.disc_golf_with_friends_origin or origin != settings.disc_golf_with_friends_origin:
         await websocket.close(code=4403, reason="Unapproved browser origin")
         return
     user = _websocket_user(websocket, settings)
     if user is None:
         await websocket.close(code=4401, reason="Authentication is required")
+        return
+    with db_session.SessionLocal() as session:
+        game = session.scalar(
+            select(Game).where(Game.slug == "disc-golf-with-friends", Game.status == "playable")
+        )
+    if game is None or not game.supports_multiplayer:
+        await websocket.close(code=4404, reason="Multiplayer is unavailable")
         return
     await websocket.accept()
     await room_manager.attach(websocket, user)
@@ -47,4 +60,6 @@ async def disc_golf_multiplayer(
                 continue
             await room_manager.handle(websocket, user, payload)
     except WebSocketDisconnect:
-        await room_manager.disconnect(user.id)
+        pass
+    finally:
+        await room_manager.disconnect(user.id, websocket)

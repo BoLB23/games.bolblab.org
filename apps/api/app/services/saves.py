@@ -4,7 +4,8 @@ import json
 import re
 from typing import Any
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.exc import StaleDataError
 
@@ -15,7 +16,6 @@ from app.models.game_save import GameSave, PlayerGameProfile
 from app.models.user import User
 
 SLOT_KEY_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$")
-
 
 class SaveError(Exception):
     def __init__(self, message: str, *, status_code: int = 400, detail: object | None = None) -> None:
@@ -131,11 +131,30 @@ def put_save(
         raise SaveError("Save data exceeds the per-save size limit", status_code=422)
 
     game = _enabled_game(session, game_slug)
+    session.execute(update(User).where(User.id == user.id).values(id=User.id))
+    return _put_save_locked(
+        session, game=game, slot_key=slot_key, user=user, data=data,
+        byte_size=byte_size, game_version=game_version, schema_version=schema_version,
+        expected_revision=expected_revision, settings=settings,
+    )
+
+
+def _put_save_locked(
+    session: Session, *, game: Game, slot_key: str, user: User, data: Any,
+    byte_size: int,
+    game_version: str, schema_version: int, expected_revision: int | None, settings: Settings,
+) -> dict[str, object]:
     profile = _profile(session, user=user, game=game)
     if profile is None:
         profile = PlayerGameProfile(user_id=user.id, game_id=game.id)
         session.add(profile)
-        session.flush()
+        try:
+            session.flush()
+        except IntegrityError:
+            session.rollback()
+            profile = _profile(session, user=user, game=game)
+            if profile is None:
+                raise
     profile_id = profile.id
     save = session.scalar(
         select(GameSave).where(GameSave.profile_id == profile_id, GameSave.slot_key == slot_key)
@@ -173,16 +192,25 @@ def put_save(
     profile.updated_at = timestamp
     try:
         session.commit()
-    except StaleDataError as error:
+    except (StaleDataError, IntegrityError) as error:
         session.rollback()
         raise _revision_conflict(session, profile_id=profile_id, slot_key=slot_key) from error
     session.refresh(save)
     return _save_response(save)
 
 
-def delete_save(session: Session, *, game_slug: str, slot_key: str, user: User) -> None:
+def delete_save(
+    session: Session, *, game_slug: str, slot_key: str, user: User, expected_revision: int
+) -> None:
     _validate_slot_key(slot_key)
     game = _enabled_game(session, game_slug)
+    session.execute(update(User).where(User.id == user.id).values(id=User.id))
+    _delete_save_locked(session, game=game, slot_key=slot_key, user=user, expected_revision=expected_revision)
+
+
+def _delete_save_locked(
+    session: Session, *, game: Game, slot_key: str, user: User, expected_revision: int
+) -> None:
     profile = _profile(session, user=user, game=game)
     save = (
         session.scalar(select(GameSave).where(GameSave.profile_id == profile.id, GameSave.slot_key == slot_key))
@@ -192,6 +220,8 @@ def delete_save(session: Session, *, game_slug: str, slot_key: str, user: User) 
     if save is None:
         raise SaveError("Save slot not found", status_code=404)
     assert profile is not None
+    if save.revision != expected_revision:
+        raise _revision_conflict(session, profile_id=profile.id, slot_key=slot_key)
     session.delete(save)
     profile.updated_at = utc_now()
     session.commit()

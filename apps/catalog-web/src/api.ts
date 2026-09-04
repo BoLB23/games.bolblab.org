@@ -18,5 +18,8 @@ async function devRequest<T>(path: string, body?: unknown): Promise<T> {
 
 export const getDevelopmentUsers = () => devRequest<DevelopmentUser[]>('/auth/dev/users');
 export const devLogin = (userId: string) => devRequest('/auth/dev/login', { user_id: userId });
-export const logout = () => fetch(`${apiBaseUrl}/auth/logout`, { method: 'POST', credentials: 'include' });
+export async function logout(): Promise<void> {
+  const response = await fetch(`${apiBaseUrl}/auth/logout`, { method: 'POST', credentials: 'include' });
+  if (!response.ok) throw new GamePlatformApiError(`Logout failed (${response.status})`, response.status);
+}
 export function googleLoginUrl(returnPath: string): string { return `${apiBaseUrl}/auth/login?next=${encodeURIComponent(returnPath)}`; }

@@ -5,13 +5,16 @@ from pathlib import Path
 from typing import cast
 
 import pytest
+from cryptography.fernet import Fernet
 from fastapi.testclient import TestClient
 from httpx import Response
 from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError
 
 import app.db.session as db_session
+from app.core.config import get_settings
 from app.db.base import Base
+from app.main import create_app
 from app.models.auth import UserSession
 from app.models.common import utc_now
 from app.models.game import Game
@@ -70,6 +73,12 @@ def test_game_launch_url_can_include_a_path_while_its_cors_origin_stays_strict(
 ) -> None:
     monkeypatch.setenv("FLAPPY_MIKE_ORIGIN", "http://games.example.test")
     monkeypatch.setenv("FLAPPY_MIKE_LAUNCH_URL", "http://games.example.test/games/flappy-mike/")
+    monkeypatch.setenv("AUTH_MODE", "oidc")
+    monkeypatch.setenv("OIDC_ISSUER", "https://accounts.google.com")
+    monkeypatch.setenv("OIDC_CLIENT_ID", "test-client")
+    monkeypatch.setenv("OIDC_CLIENT_SECRET", "test-secret")
+    monkeypatch.setenv("OIDC_CALLBACK_URL", "http://localhost:6183/api/v1/auth/callback")
+    monkeypatch.setenv("OIDC_TRANSACTION_SECRET", Fernet.generate_key().decode())
     from app.core.config import get_settings
 
     get_settings.cache_clear()
@@ -84,6 +93,34 @@ def test_untrusted_origin_is_rejected_by_cors(client: TestClient) -> None:
 
     assert response.status_code == 400
     assert "access-control-allow-origin" not in response.headers
+
+
+def test_production_rejects_development_auth(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.core.config import get_settings
+
+    monkeypatch.setenv("APP_ENV", "production")
+    monkeypatch.setenv("AUTH_MODE", "development")
+    get_settings.cache_clear()
+    with pytest.raises(ValueError, match="Production requires AUTH_MODE=oidc"):
+        get_settings()
+    get_settings.cache_clear()
+
+
+def test_production_hides_docs_on_the_mounted_api() -> None:
+    from app.core.config import get_settings
+
+    settings = get_settings()
+    original = settings.app_env
+    try:
+        settings.app_env = "production"
+        with TestClient(create_app()) as production_client:
+            assert production_client.get("/docs").status_code == 404
+            assert production_client.get("/redoc").status_code == 404
+            assert production_client.get("/openapi.json").status_code == 404
+            assert production_client.get("/api/v1/docs").status_code == 404
+            assert production_client.get("/api/v1/openapi.json").status_code == 404
+    finally:
+        settings.app_env = original
 
 
 def test_development_login_me_and_logout(client: TestClient) -> None:
@@ -110,11 +147,17 @@ def test_session_revalidation_reports_fixed_expiry_and_rejects_an_expired_cookie
     assert authenticated_client.get("/api/v1/auth/session").status_code == 401
 
 
+def test_validation_errors_with_context_are_returned_as_json(authenticated_client: TestClient) -> None:
+    response = authenticated_client.put("/api/v1/me/player", json={"haircut": "not-a-real-style"})
+    assert response.status_code == 422
+    assert response.json()["error"] == "validation_error"
+
+
 def test_development_login_is_disabled_outside_development(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("APP_ENV", "production")
-    from app.core.config import get_settings
     get_settings.cache_clear()
-    assert client.get("/api/v1/auth/dev/users").status_code == 404
+    with pytest.raises(ValueError, match="Production requires AUTH_MODE=oidc"):
+        get_settings()
 
 
 def test_games_are_ordered_and_hidden_games_are_excluded(authenticated_client: TestClient) -> None:
@@ -378,6 +421,19 @@ def test_cloud_save_conflicts_are_explicit_and_slots_are_isolated(authenticated_
     assert authenticated_client.get("/api/v1/games/sample-game/saves/main").status_code == 404
 
 
+def test_cloud_save_delete_requires_current_revision(authenticated_client: TestClient) -> None:
+    _enable_cloud_saves()
+    payload = {"data": {"coins": 1}, "game_version": "1.0.0", "schema_version": 1}
+    created = authenticated_client.put("/api/v1/games/sample-game/saves/delete-me", json=payload)
+    assert created.status_code == 200
+    assert authenticated_client.delete(
+        "/api/v1/games/sample-game/saves/delete-me?expected_revision=2"
+    ).status_code == 409
+    assert authenticated_client.delete(
+        "/api/v1/games/sample-game/saves/delete-me?expected_revision=1"
+    ).status_code == 204
+
+
 def test_cloud_save_limits_disabled_games_and_deletion(
     authenticated_client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -400,7 +456,7 @@ def test_cloud_save_limits_disabled_games_and_deletion(
     assert authenticated_client.put(
         "/api/v1/games/sample-game/saves/too-large", json={**payload, "data": "c" * 900}
     ).status_code == 422
-    assert authenticated_client.delete("/api/v1/games/sample-game/saves/one").status_code == 204
+    assert authenticated_client.delete("/api/v1/games/sample-game/saves/one?expected_revision=1").status_code == 204
     assert authenticated_client.get("/api/v1/games/sample-game/saves/one").status_code == 404
 
 

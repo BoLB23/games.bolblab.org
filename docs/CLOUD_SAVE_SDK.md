@@ -24,7 +24,7 @@ The independent Milton project can consume the SDK as documented in [`SDK_LOCAL_
 - `GET /games/{slug}/saves` returns slot metadata only.
 - `GET /games/{slug}/saves/{slot}` returns the versioned JSON payload.
 - `PUT /games/{slug}/saves/{slot}` creates a slot with `expected_revision: null`; later writes must send the revision received from the server.
-- `DELETE /games/{slug}/saves/{slot}` removes a slot.
+- `DELETE /games/{slug}/saves/{slot}?expected_revision={revision}` removes a slot only when the revision still matches. The SDK call is `client.saves.delete(gameSlug, slotKey, expectedRevision)` and requires a positive revision; read the slot first and never delete from a stale view.
 
 A stale write returns HTTP 409. In the SDK it is a `GamePlatformApiError` with `code === 'conflict'`; its response body in `detail` includes the current server metadata. Do not automatically overwrite it—offer the player a choice between their local copy and the remote one.
 

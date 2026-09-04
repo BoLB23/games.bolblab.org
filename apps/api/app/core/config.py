@@ -125,6 +125,19 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_runtime_configuration(self) -> Settings:
+        # Development user-picker auth must never be deployable as production.
+        # Keep this fail-closed so an omitted or mismatched OIDC overlay cannot
+        # silently expose deterministic local accounts.
+        if self.app_env == "production" and self.auth_mode != "oidc":
+            raise ValueError("Production requires AUTH_MODE=oidc")
+        if self.auth_mode == "development":
+            configured_origins = [self.catalog_origin, self.sample_game_origin, self.flappy_mike_origin]
+            configured_origins.extend(origin for origin in self.game_cors_allowed_origins.split(",") if origin)
+            configured_origins.extend(
+                origin for origin in (self.milton_estates_origin, self.disc_golf_with_friends_origin) if origin
+            )
+            if any(urlparse(origin).hostname not in {"localhost", "127.0.0.1", "::1"} for origin in configured_origins):
+                raise ValueError("Development auth requires loopback browser origins")
         if self.milton_estates_enabled and not self.milton_estates_origin:
             raise ValueError("MILTON_ESTATES_ORIGIN is required when MILTON_ESTATES_ENABLED is true")
         if self.milton_estates_cloud_saves_enabled and not self.milton_estates_enabled:
@@ -183,6 +196,8 @@ class Settings(BaseSettings):
         """Exact browser origins permitted to make credentialed API requests."""
         origins = [self.catalog_origin, self.sample_game_origin, self.flappy_mike_origin]
         origins.extend(origin for origin in self.game_cors_allowed_origins.split(",") if origin)
+        if self.milton_estates_origin:
+            origins.append(self.milton_estates_origin)
         if self.disc_golf_with_friends_origin:
             origins.append(self.disc_golf_with_friends_origin)
         if self.app_env == "development":

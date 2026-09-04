@@ -98,11 +98,17 @@ class RoomManager:
             if player is not None:
                 player.connected = True
                 room.last_activity = utc_now()
+                if room.phase == "playing" and room.active_player_id is None:
+                    room.active_player_id = self._first_eligible_player(room)
                 room.version += 1
             await self._send_room_state(room)
 
-    async def disconnect(self, user_id: uuid.UUID) -> None:
+    async def disconnect(self, user_id: uuid.UUID, websocket: WebSocket | None = None) -> None:
         async with self._lock:
+            # A replaced connection can receive its disconnect callback after the
+            # replacement was attached. Never let that stale callback evict it.
+            if websocket is not None and self._sockets.get(user_id) is not websocket:
+                return
             self._sockets.pop(user_id, None)
             room = self._room_for_user(user_id)
             if room is None:
@@ -119,6 +125,8 @@ class RoomManager:
 
     async def handle(self, websocket: WebSocket, user: User, payload: object) -> None:
         async with self._lock:
+            if self._sockets.get(user.id) is not websocket:
+                return
             self._cleanup_empty_rooms()
             try:
                 command = self._command(payload)
@@ -246,7 +254,6 @@ class RoomManager:
             return
         room.players.pop(user_id, None)
         self._room_by_user.pop(user_id, None)
-        self._sockets.pop(user_id, None)
         if not room.players:
             self._rooms.pop(room.code, None)
             return
@@ -318,6 +325,13 @@ class RoomManager:
     def _first_connected_player(self, room: Room) -> uuid.UUID | None:
         return next((player.user_id for player in room.players.values() if player.connected), None)
 
+    def _first_eligible_player(self, room: Room) -> uuid.UUID | None:
+        return next(
+            (player.user_id for player in room.players.values()
+             if player.connected and not player.holed and player.hole_strokes < MAX_STROKES_PER_HOLE),
+            None,
+        )
+
     def _new_code(self) -> str:
         while True:
             code = "".join(secrets.choice(ROOM_CODE_ALPHABET) for _ in range(6))
@@ -326,9 +340,20 @@ class RoomManager:
 
     async def _send_room_state(self, room: Room) -> None:
         payload = {"type": "room_state", "room": _room_response(room)}
-        for user_id, player in room.players.items():
+        for user_id, player in list(room.players.items()):
             if player.connected and (socket := self._sockets.get(user_id)) is not None:
-                await socket.send_json(payload)
+                try:
+                    await socket.send_json(payload)
+                except Exception:
+                    # A failed send is equivalent to a dropped connection. Keep
+                    # the room usable for everyone else and let a later attach
+                    # reconnect this player.
+                    if self._sockets.get(user_id) is socket:
+                        self._sockets.pop(user_id, None)
+                        player.connected = False
+                        if room.active_player_id == user_id:
+                            self._advance_turn(room, user_id)
+                        room.version += 1
 
     def _cleanup_empty_rooms(self) -> None:
         now = utc_now()

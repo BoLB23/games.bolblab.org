@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: games-api
+  namespace: bolblab-games
+spec:
+  template:
+    spec:
+      initContainers:
+        - name: migrate-and-seed
+          command:
+            - /bin/sh
+            - -ec
+            - /app/.venv/bin/alembic upgrade head && /app/.venv/bin/python -m app.cli seed
+          env:
+            - name: APP_ENV
+              value: development
+            - name: AUTH_MODE
+              value: development
+            - name: SESSION_COOKIE_SECURE
+              value: "false"
+            - name: CATALOG_ORIGIN
+              value: http://localhost:6183
+            - name: SAMPLE_GAME_ORIGIN
+              value: http://localhost:6184
+            - name: SAMPLE_GAME_LAUNCH_URL
+              value: http://localhost:6184
+            - name: FLAPPY_MIKE_ORIGIN
+              value: http://localhost:6185
+            - name: FLAPPY_MIKE_LAUNCH_URL
+              value: http://localhost:6185
+      containers:
+        - name: api
+          env:
+            - name: APP_ENV
+              value: development
+            - name: AUTH_MODE
+              value: development
+            - name: SESSION_COOKIE_SECURE
+              value: "false"
+            - name: CATALOG_ORIGIN
+              value: http://localhost:6183
+            - name: SAMPLE_GAME_ORIGIN
+              value: http://localhost:6184
+            - name: SAMPLE_GAME_LAUNCH_URL
+              value: http://localhost:6184
+            - name: FLAPPY_MIKE_ORIGIN
+              value: http://localhost:6185
+            - name: FLAPPY_MIKE_LAUNCH_URL
+              value: http://localhost:6185

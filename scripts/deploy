@@ -11,7 +11,8 @@ default. The TLS ingress is required for production and is used only when the
 games-bolblab-org-tls secret is present.
 
 --oidc explicitly selects production Google OIDC mode.
---development explicitly selects the non-OIDC development deployment.
+--development is rejected for cluster deployment; use npm run dev or the
+explicit local development Kustomize overlay instead.
 Production requires an OIDC-ready games-secrets secret and a matching
 production config map.
 EOF
@@ -82,6 +83,12 @@ fi
 
 if [ "$OIDC" = true ] && [ "$CONTEXT" = "" ]; then
   echo "Error: --context is required for production OIDC deployment." >&2
+  exit 1
+fi
+
+if [ "$OIDC" = false ]; then
+  echo "Error: --development does not deploy the hardened production manifest." >&2
+  echo "Use npm run dev for local development, or render k8s/overlays/development explicitly for a private local cluster." >&2
   exit 1
 fi
 

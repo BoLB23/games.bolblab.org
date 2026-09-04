@@ -4,7 +4,7 @@ import json
 import math
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
@@ -34,6 +34,7 @@ class LeaderboardError(Exception):
     def __init__(self, message: str, *, status_code: int = 400) -> None:
         super().__init__(message)
         self.status_code = status_code
+
 
 
 def canonical_aggregation(value: str) -> str:
@@ -137,20 +138,42 @@ def get_leaderboard_response(
     current_user: User,
     limit: int,
 ) -> dict[str, object]:
-    entries = list(
-        session.scalars(
-            select(LeaderboardEntry)
-            .where(LeaderboardEntry.leaderboard_id == board.id)
-            .options(selectinload(LeaderboardEntry.user).selectinload(User.player_profile))
+    descending = canonical_sort_direction(board.sort_direction) == "desc"
+    value_order = LeaderboardEntry.value.desc() if descending else LeaderboardEntry.value.asc()
+    ranked_rows = (
+        select(
+            LeaderboardEntry.id,
+            LeaderboardEntry.user_id,
+            func.row_number()
+            .over(order_by=(value_order, func.lower(User.display_name).asc(), LeaderboardEntry.user_id.asc()))
+            .label("rank"),
+        )
+        .join(User, User.id == LeaderboardEntry.user_id)
+        .where(LeaderboardEntry.leaderboard_id == board.id)
+        .subquery()
+    )
+    selected = list(
+        session.execute(
+            select(ranked_rows.c.id, ranked_rows.c.user_id, ranked_rows.c.rank)
+            .where((ranked_rows.c.rank <= limit) | (ranked_rows.c.user_id == current_user.id))
+            .order_by(ranked_rows.c.rank)
         )
     )
-    entries.sort(key=lambda entry: (entry.user.display_name.casefold(), str(entry.user_id)))
-    entries.sort(key=lambda entry: entry.value, reverse=canonical_sort_direction(board.sort_direction) == "desc")
-    ranked = [_ranked_entry(entry, rank=index) for index, entry in enumerate(entries, start=1)]
+    ids = [row.id for row in selected]
+    entries_by_id = {
+        entry.id: entry
+        for entry in session.scalars(
+            select(LeaderboardEntry)
+            .where(LeaderboardEntry.id.in_(ids))
+            .options(selectinload(LeaderboardEntry.user).selectinload(User.player_profile))
+        )
+    }
+    ranked = [_ranked_entry(entries_by_id[row.id], rank=row.rank) for row in selected]
+    visible = ranked[:limit]
     current_entry = next((entry for entry in ranked if entry["user_id"] == current_user.id), None)
     return {
         "definition": _definition_response(board),
-        "entries": ranked[:limit],
+        "entries": visible,
         "current_user_entry": current_entry,
         "current_user_rank": current_entry["rank"] if current_entry is not None else None,
     }
@@ -206,6 +229,21 @@ def submit_leaderboard_entry(
         raise LeaderboardError("Leaderboard not found for this game", status_code=404)
     board.game = game
     _validate_board_value(board, value)
+    # Lock the durable user row before reading the per-user entry. This works
+    # across workers and replicas (and SQLite's writer lock protects its local
+    # development database), including first-entry and idempotency inserts.
+    session.execute(update(User).where(User.id == user.id).values(id=User.id))
+    return _submit_locked(
+        session, board=board, game_slug=game_slug, leaderboard_key=leaderboard_key,
+        user=user, value=value, metadata=metadata, idempotency_key=idempotency_key, settings=settings,
+    )
+
+
+def _submit_locked(
+    session: Session, *, board: LeaderboardDefinition, game_slug: str, leaderboard_key: str,
+    user: User, value: float, metadata: dict[str, Any] | None, idempotency_key: str | None,
+    settings: Settings,
+) -> dict[str, object]:
     if idempotency_key is not None:
         previous = session.scalar(
             select(LeaderboardSubmission).where(

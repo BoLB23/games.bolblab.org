@@ -11,7 +11,7 @@ import httpx
 from authlib.jose import jwt
 from authlib.jose.errors import JoseError
 from cryptography.fernet import Fernet, InvalidToken
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -64,7 +64,10 @@ def _discovery(settings: Settings) -> dict[str, str]:
     try:
         response = httpx.get(f"{issuer}/.well-known/openid-configuration", timeout=_TIMEOUT, follow_redirects=False)
         response.raise_for_status()
-        document: dict[str, Any] = response.json()
+        raw_document = response.json()
+        if not isinstance(raw_document, dict):
+            raise OidcError("Invalid Google discovery document")
+        document: dict[str, Any] = raw_document
     except (httpx.HTTPError, ValueError) as exc:
         raise OidcError("Google discovery is unavailable") from exc
     required = ("issuer", "authorization_endpoint", "token_endpoint", "jwks_uri")
@@ -106,8 +109,23 @@ def _consume_transaction(session: Session, settings: Settings, state: str) -> Oi
     expires_at = transaction.expires_at if transaction.expires_at.tzinfo else transaction.expires_at.replace(tzinfo=UTC)
     if expires_at <= utc_now():
         raise OidcError("Invalid or expired OIDC state")
-    transaction.consumed_at = utc_now()
+    # Consume state with a compare-and-set so two callbacks racing with the
+    # same state cannot both exchange the authorization code.
+    consumed_at = utc_now()
+    result = session.execute(
+        update(OidcLoginTransaction)
+        .where(
+            OidcLoginTransaction.id == transaction.id,
+            OidcLoginTransaction.consumed_at.is_(None),
+            OidcLoginTransaction.expires_at > consumed_at,
+        )
+        .values(consumed_at=consumed_at)
+    )
+    if result.rowcount != 1:  # type: ignore[attr-defined]
+        session.rollback()
+        raise OidcError("Invalid or expired OIDC state")
     session.commit()
+    session.refresh(transaction)
     try:
         _fernet(settings).decrypt(transaction.encrypted_code_verifier.encode("ascii"))
     except InvalidToken as exc:
@@ -124,7 +142,10 @@ def _tokens(settings: Settings, code: str, verifier: str, token_endpoint: str) -
             auth=(settings.oidc_client_id, settings.oidc_client_secret), timeout=_TIMEOUT, follow_redirects=False,
         )
         response.raise_for_status()
-        payload: dict[str, Any] = response.json()
+        raw_payload = response.json()
+        if not isinstance(raw_payload, dict):
+            raise OidcError("Google token exchange failed")
+        payload: dict[str, Any] = raw_payload
     except (httpx.HTTPError, ValueError) as exc:
         raise OidcError("Google token exchange failed") from exc
     if not isinstance(payload.get("id_token"), str):

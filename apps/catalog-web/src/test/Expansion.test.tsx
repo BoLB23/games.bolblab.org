@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   leaderboardList: vi.fn(),
   leaderboardGet: vi.fn(),
   refetch: vi.fn(),
+  signOut: vi.fn(),
   user: { id: 'pat', display_name: 'Pat Player', email: null, avatar_url: null, is_admin: false, role: 'member', last_login_at: null, last_seen_at: null, needs_player_setup: false },
 }));
 
@@ -29,14 +30,14 @@ vi.mock('../auth', () => ({
     user: mocks.user,
     isLoading: false,
     refetch: mocks.refetch,
-    signOut: vi.fn(),
+    signOut: mocks.signOut,
   }),
   ME_QUERY_KEY: ['me'],
   PLAYER_QUERY_KEY: (userId: string) => ['player', userId],
   markGoogleLoginIntent: vi.fn(),
 }));
 
-import { ClanPage, formatLeaderboardValue, LeaderboardsPage, MyPlayerPage, RequireAuth } from '../pages';
+import { ClanPage, formatLeaderboardValue, LeaderboardsPage, MyPlayerPage, ProfilePage, RequireAuth } from '../pages';
 
 const appearance = { nickname: 'Pat', haircut: 'short', hair_color: '#2b1d13', tshirt_color: '#f05a28', pants_color: '#1b2330', shoe_color: '#f5efe4' };
 const player = { id: 'profile', user_id: 'pat', ...appearance, created_at: '', updated_at: '' };
@@ -113,5 +114,23 @@ describe('player, clan, and leaderboard surfaces', () => {
     const rows = screen.getAllByRole('listitem');
     expect(rows[0]).toHaveTextContent('Ada');
     expect(rows[1]).toHaveTextContent('Pat');
+  });
+
+  it('restores the game and board selected in URL parameters', async () => {
+    const first = { id: 'a', game_id: 'g1', game_slug: 'sample-game', game_title: 'Sample Game', key: 'orb-touches', display_name: 'Orb touches', description: '', mission_key: null, unit: 'points', sort_direction: 'desc' as const, aggregation: 'max' as const, is_active: true, created_at: '', updated_at: '' };
+    const second = { ...first, id: 'b', game_slug: 'flappy-mike', game_title: 'Flappy Mike', key: 'distance', display_name: 'Distance' };
+    mocks.leaderboardList.mockResolvedValue([first, second]);
+    mocks.leaderboardGet.mockResolvedValue({ definition: second, entries: [], current_user_entry: null, current_user_rank: null });
+    render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><MemoryRouter initialEntries={['/leaderboards?game=flappy-mike&board=distance']}><LeaderboardsPage /></MemoryRouter></QueryClientProvider>);
+    await waitFor(() => expect(screen.getAllByRole('combobox')[0]).toHaveValue('flappy-mike'));
+    expect(screen.getAllByRole('combobox')[1]).toHaveValue('distance');
+  });
+
+  it('keeps the signed-in user when server logout fails', async () => {
+    mocks.signOut.mockRejectedValue(new Error('server unavailable'));
+    renderPage(<ProfilePage />);
+    fireEvent.submit(screen.getByRole('button', { name: 'Log out' }).closest('form')!);
+    await waitFor(() => expect(screen.getByText(/Could not log out/)).toBeInTheDocument());
+    expect(screen.getByRole('heading', { name: 'Pat Player' })).toBeInTheDocument();
   });
 });

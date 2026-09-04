@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import hmac
+from urllib.parse import parse_qs, urlparse
+
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
@@ -20,6 +23,11 @@ from app.schemas.auth import (
 )
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+_OIDC_TRANSACTION_COOKIE = "game_platform_oidc_tx"
+
+
+def _oidc_transaction_cookie(settings: Settings) -> str:
+    return "__Host-game_platform_oidc_tx" if settings.session_cookie_secure else _OIDC_TRANSACTION_COOKIE
 
 
 def _safe_return_path(value: str | None) -> str:
@@ -43,29 +51,55 @@ def oidc_login(
     if settings.auth_mode != "oidc":
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="OIDC authentication is disabled")
     try:
-        return RedirectResponse(start_login(session, settings, _safe_return_path(next_path)), status_code=status.HTTP_303_SEE_OTHER)
+        location = start_login(session, settings, _safe_return_path(next_path))
+        state = parse_qs(urlparse(location).query).get("state", [""])[0]
+        if not state:
+            raise OidcError("OIDC provider did not return state")
+        redirect = RedirectResponse(location, status_code=status.HTTP_303_SEE_OTHER)
+        redirect.set_cookie(
+            _oidc_transaction_cookie(settings), state, httponly=True, secure=settings.session_cookie_secure,
+            samesite="lax", max_age=settings.oidc_transaction_ttl_seconds, path="/",
+        )
+        return redirect
     except OidcError:
         return _login_error_redirect(settings)
 
 
 @router.get("/callback")
 def oidc_callback(
+    request: Request,
     code: str | None = None,
     state_value: str | None = Query(default=None, alias="state"),
     _error: str | None = Query(default=None, alias="error"),
     session: Session = Depends(get_db_session),
     settings: Settings = Depends(get_settings),
 ) -> RedirectResponse:
+    def failure() -> RedirectResponse:
+        redirect = _login_error_redirect(settings)
+        redirect.delete_cookie(_oidc_transaction_cookie(settings), path="/", secure=settings.session_cookie_secure)
+        return redirect
+
     if settings.auth_mode != "oidc":
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="OIDC authentication is disabled")
     if not code or not state_value:
-        return _login_error_redirect(settings)
+        return failure()
+    browser_state = request.cookies.get(_oidc_transaction_cookie(settings))
+    if not browser_state:
+        return failure()
+    try:
+        state_matches = hmac.compare_digest(
+            browser_state.encode("ascii"), state_value.encode("ascii")
+        )
+    except UnicodeEncodeError:
+        state_matches = False
+    if not state_matches:
+        return failure()
     try:
         user, return_path, _subject = complete_login(session, settings, code, state_value)
         session_token = create_session(session, settings, user.id)
         session.commit()
     except OidcError:
-        return _login_error_redirect(settings)
+        return failure()
     redirect = RedirectResponse(f"{settings.catalog_origin}{return_path}", status_code=status.HTTP_303_SEE_OTHER)
     redirect.set_cookie(
         key=settings.session_cookie_name, value=session_token, httponly=True, samesite="lax",
@@ -73,6 +107,7 @@ def oidc_callback(
     )
     redirect.headers["Cache-Control"] = "no-store"
     redirect.headers["Referrer-Policy"] = "no-referrer"
+    redirect.delete_cookie(_oidc_transaction_cookie(settings), path="/", secure=settings.session_cookie_secure)
     return redirect
 
 

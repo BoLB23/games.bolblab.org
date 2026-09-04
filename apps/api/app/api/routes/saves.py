@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy.orm import Session
 
@@ -70,11 +70,12 @@ def save_put(
 def save_delete(
     game_slug: str,
     slot_key: str,
+    expected_revision: int = Query(..., ge=1),
     user: User = Depends(get_current_user),
     session: Session = Depends(get_db_session),
 ) -> Response:
     try:
-        delete_save(session, game_slug=game_slug, slot_key=slot_key, user=user)
+        delete_save(session, game_slug=game_slug, slot_key=slot_key, user=user, expected_revision=expected_revision)
     except SaveError as error:
         raise _handle_error(error) from error
     return Response(status_code=status.HTTP_204_NO_CONTENT)

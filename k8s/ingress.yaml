@@ -3,8 +3,14 @@ kind: Ingress
 metadata:
   name: games
   namespace: bolblab-games
+  annotations:
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
 spec:
   ingressClassName: nginx
+  tls:
+    - hosts:
+        - games.bolblab.org
+      secretName: games-bolblab-org-tls
   rules:
     - host: games.bolblab.org
       http:

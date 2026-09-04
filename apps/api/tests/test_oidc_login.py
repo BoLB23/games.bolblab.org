@@ -7,6 +7,7 @@ from cryptography.fernet import Fernet
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+import app.api.routes.auth as auth_route
 import app.auth.oidc as oidc
 import app.db.session as db_session
 from app.core.config import Settings, get_settings
@@ -157,3 +158,36 @@ def test_player_setup_is_completed_only_when_player_is_saved(client: object) -> 
 
         update_player(session, user, {})
         assert user.needs_player_setup is False
+
+
+def test_oidc_callback_is_bound_to_the_login_browser(
+    client: object, monkeypatch: pytest.MonkeyPatch, oidc_settings: Settings
+) -> None:
+    test_client = client
+    assert hasattr(test_client, "get")
+    user = None
+    with db_session.SessionLocal() as session:
+        user = session.scalar(select(User).where(User.display_name == "Ada Admin"))
+    assert user is not None
+    monkeypatch.setattr(auth_route, "start_login", lambda *_args: "https://accounts.google.com/auth?state=browser-state")
+    login = test_client.get("/api/v1/auth/login", follow_redirects=False)
+    assert login.status_code == 303
+    assert "game_platform_oidc_tx=browser-state" in login.headers["set-cookie"]
+
+    def complete(*_args: object) -> tuple[User, str, str]:
+        return user, "/", "subject"
+
+    monkeypatch.setattr(auth_route, "complete_login", complete)
+    isolated = type(test_client)(test_client.app)
+    rejected = isolated.get(
+        "/api/v1/auth/callback?code=code&state=browser-state", follow_redirects=False
+    )
+    assert rejected.status_code == 303
+    assert "google_login_failed" in rejected.headers["location"]
+    accepted = test_client.get(
+        "/api/v1/auth/callback?code=code&state=browser-state", follow_redirects=False
+    )
+    assert accepted.status_code == 303
+    assert accepted.headers["location"].endswith("/")
+    assert "game_platform_session=" in accepted.headers["set-cookie"]
+    assert "game_platform_oidc_tx=" in accepted.headers["set-cookie"]

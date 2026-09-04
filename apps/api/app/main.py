@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 
 from fastapi import FastAPI, Request
+from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -26,7 +27,13 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name
 
 def create_app() -> FastAPI:
     settings = get_settings()
-    app = FastAPI(title="Game Platform API", version="0.1.0", docs_url="/docs" if settings.app_env == "development" else None)
+    app = FastAPI(
+        title="Game Platform API",
+        version="0.1.0",
+        docs_url="/docs" if settings.app_env == "development" else None,
+        redoc_url="/redoc" if settings.app_env == "development" else None,
+        openapi_url="/openapi.json" if settings.app_env == "development" else None,
+    )
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_allowed_origins,
@@ -37,9 +44,25 @@ def create_app() -> FastAPI:
 
     @app.exception_handler(RequestValidationError)
     async def validation_error(_request: Request, exc: RequestValidationError) -> JSONResponse:
-        return JSONResponse(status_code=422, content={"error": "validation_error", "detail": exc.errors()})
+        # Pydantic may include a ValueError instance in ``ctx`` for validator
+        # failures; encode it explicitly so malformed requests always get a
+        # JSON 422 instead of an internal serialization error.
+        detail = jsonable_encoder(exc.errors(), custom_encoder={ValueError: str})
+        return JSONResponse(status_code=422, content={"error": "validation_error", "detail": detail})
 
-    api = FastAPI()
+    # The mounted application has its own OpenAPI/docs defaults. Explicitly
+    # disable them outside development so /api/v1/docs cannot bypass the
+    # parent application's production setting.
+    api = FastAPI(
+        docs_url="/docs" if settings.app_env == "development" else None,
+        redoc_url="/redoc" if settings.app_env == "development" else None,
+        openapi_url="/openapi.json" if settings.app_env == "development" else None,
+    )
+
+    @api.exception_handler(RequestValidationError)
+    async def mounted_validation_error(_request: Request, exc: RequestValidationError) -> JSONResponse:
+        detail = jsonable_encoder(exc.errors(), custom_encoder={ValueError: str})
+        return JSONResponse(status_code=422, content={"error": "validation_error", "detail": detail})
     api.include_router(system.router)
     api.include_router(auth.router)
     api.include_router(player.router)

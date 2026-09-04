@@ -8,9 +8,9 @@
   "description": "The private arcade for Underground Heat Studios.",
   "icons": [
     {
-      "src": "/assets/pwa-icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
+      "src": "/assets/pwa-icon.png",
+      "sizes": "1254x1254",
+      "type": "image/png",
       "purpose": "any maskable"
     }
   ]

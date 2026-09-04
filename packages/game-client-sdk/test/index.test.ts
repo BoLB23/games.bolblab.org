@@ -60,6 +60,11 @@ describe('game client SDK', () => {
     await expect(client.auth.getCurrentUser()).rejects.toMatchObject({ code: 'network' });
   });
 
+  it('preserves retryable rate limit and server status on API errors', async () => {
+    const client = createGamePlatformClient({ apiBaseUrl: 'http://api.test', fetch: vi.fn().mockResolvedValue(new Response('{}', { status: 429 })) });
+    await expect(client.auth.getCurrentUser()).rejects.toMatchObject({ status: 429, code: 'api' });
+  });
+
   it('maps request timeouts', async () => {
     const fetch = vi.fn((_url: string, init: RequestInit) => new Promise((_resolve, reject) => init.signal?.addEventListener('abort', () => reject(new DOMException('', 'AbortError')))));
     const client = createGamePlatformClient({ apiBaseUrl: 'http://api.test', fetch, timeoutMs: 1 });
@@ -108,10 +113,11 @@ describe('game client SDK', () => {
     await expect(client.saves.put('milton-estates', 'campaign', {
       data: { coins: 43 }, gameVersion: '1.2.1', schemaVersion: 3, expectedRevision: 1,
     })).resolves.toMatchObject({ revision: 2, data: { coins: 43 } });
-    await client.saves.delete('milton-estates', 'campaign');
+    await client.saves.delete('milton-estates', 'campaign', 2);
     expect(JSON.parse(String(fetch.mock.calls[2][1]?.body))).toEqual({
       data: { coins: 43 }, game_version: '1.2.1', schema_version: 3, expected_revision: 1,
     });
+    expect(fetch.mock.calls[3][0]).toContain('/saves/campaign?expected_revision=2');
     expect(fetch.mock.calls[3][1]).toMatchObject({ method: 'DELETE' });
   });
 
@@ -189,6 +195,17 @@ describe('game client SDK', () => {
     durable.dispose();
   });
 
+  it('surfaces local storage quota failures instead of claiming durable offline state', () => {
+    const durable = createDurableGameSave({
+      client: { auth: { revalidate: vi.fn() }, saves: { put: vi.fn(), get: vi.fn(), list: vi.fn(), delete: vi.fn() } },
+      userId: '1', gameSlug: 'sample-game', slotKey: 'main', online: () => false,
+      storage: { getItem: () => null, setItem: () => { throw new Error('quota'); }, removeItem: () => undefined },
+    });
+    durable.save({ data: { coins: 1 }, gameVersion: '1', schemaVersion: 1, expectedRevision: null });
+    expect(durable.state.status).toBe('failed');
+    durable.dispose();
+  });
+
   it('reconciles a successful PUT whose response was lost without retrying it', async () => {
     const { storage } = memoryStorage();
     const snapshot = { id: 's', slotKey: 'main', gameVersion: '1', schemaVersion: 1, revision: 2, byteSize: 1, createdAt: '', updatedAt: '', data: { coins: 3 } };
@@ -249,5 +266,85 @@ describe('game client SDK', () => {
     await Promise.resolve();
     expect(outbox.state).toMatchObject({ status: 'queued', queuedCount: 1 });
     outbox.dispose();
+  });
+
+  it('retries a rate limited leaderboard submission', async () => {
+    const { storage } = memoryStorage();
+    const submit = vi.fn()
+      .mockRejectedValueOnce(new GamePlatformApiError('busy', 503, 'api'))
+      .mockResolvedValue({ entry: {}, rank: 1 });
+    const outbox = createDurableLeaderboardOutbox({
+      client: { auth: { revalidate: vi.fn().mockResolvedValue(authenticated) }, leaderboards: { submit } },
+      userId: '1', gameSlug: 'sample-game', storage, maxRetries: 1, retryBaseMs: 1,
+    });
+    outbox.enqueue({ leaderboardKey: 'orb-touches', value: 1 });
+    await outbox.flush();
+    expect(outbox.state.status).toBe('queued');
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    await outbox.flush();
+    expect(submit).toHaveBeenCalledTimes(2);
+    expect(outbox.state.status).toBe('accepted');
+    outbox.dispose();
+  });
+
+  it('dead letters a permanent rejection so later events can be delivered', async () => {
+    const { storage, values } = memoryStorage();
+    const submit = vi.fn()
+      .mockRejectedValueOnce(new GamePlatformApiError('invalid', 422, 'validation'))
+      .mockResolvedValue({ entry: {}, rank: 1 });
+    const outbox = createDurableLeaderboardOutbox({
+      client: { auth: { revalidate: vi.fn().mockResolvedValue(authenticated) }, leaderboards: { submit } },
+      userId: '1', gameSlug: 'sample-game', storage,
+    });
+    outbox.enqueue({ leaderboardKey: 'board', value: 1 });
+    outbox.enqueue({ leaderboardKey: 'board', value: 2 });
+    await outbox.flush();
+    expect(submit).toHaveBeenCalledTimes(2);
+    expect(outbox.state).toMatchObject({ status: 'permanently_rejected', queuedCount: 0 });
+    expect([...values.keys()].some((key) => key.includes('dead-letter'))).toBe(true);
+    outbox.dispose();
+  });
+
+  it('does not discard a rejected event when dead letter storage is unavailable', async () => {
+    const submit = vi.fn().mockRejectedValue(new GamePlatformApiError('invalid', 422, 'validation'));
+    const outbox = createDurableLeaderboardOutbox({
+      client: { auth: { revalidate: vi.fn().mockResolvedValue(authenticated) }, leaderboards: { submit } },
+      userId: '1', gameSlug: 'sample-game', storage: undefined,
+    });
+    outbox.enqueue({ leaderboardKey: 'board', value: 1 });
+    await outbox.flush();
+    expect(outbox.state.queuedCount).toBe(1);
+    outbox.dispose();
+  });
+
+  it('recovers outbox persistence after a temporary quota failure', async () => {
+    let failWrites = true;
+    const values = new Map<string, string>();
+    const flakyStorage: LocalSaveStorage = {
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => { if (failWrites) throw new Error('quota'); values.set(key, value); },
+      removeItem: (key) => { values.delete(key); },
+    };
+    const submit = vi.fn().mockResolvedValue({ entry: {}, rank: 1 });
+    const outbox = createDurableLeaderboardOutbox({ client: { auth: { revalidate: vi.fn().mockResolvedValue(authenticated) }, leaderboards: { submit } }, userId: '1', gameSlug: 'sample-game', storage: flakyStorage });
+    outbox.enqueue({ leaderboardKey: 'board', value: 1 });
+    failWrites = false;
+    await outbox.flush();
+    expect(outbox.state.status).toBe('accepted');
+    expect(values.size).toBe(0);
+    outbox.dispose();
+  });
+
+  it('does not resurrect a session after disposal races an in-flight start', async () => {
+    let release!: (value: typeof authenticated) => void;
+    const auth = vi.fn().mockReturnValue(new Promise<typeof authenticated>((resolve) => { release = resolve; }));
+    const sessions = { start: vi.fn().mockResolvedValue({ id: 'late' }), heartbeat: vi.fn(), end: vi.fn().mockResolvedValue({}) };
+    const lifecycle = createGameSessionLifecycle({ client: { auth: { revalidate: auth }, sessions }, gameSlug: 'sample-game' });
+    const starting = lifecycle.start();
+    const disposing = lifecycle.dispose();
+    release(authenticated);
+    await Promise.all([starting, disposing]);
+    expect(sessions.start).not.toHaveBeenCalled();
+    expect(lifecycle.status).toBe('idle');
   });
 });
